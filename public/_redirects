@@ -1,0 +1,11 @@
+# 1. توجيه الميديا (شغال تمام)
+/media/* http://librarytest.runasp.net/:splat                200!
+
+# 2. توجيه طلبات الـ CMS (ضعه قبل الـ API العام لأنه يبدأ بنفس الكلمة)
+/api/Cms/* http://librarytest.runasp.net/api/Cms/:splat    200!
+
+# 3. توجيه طلبات الـ API العامة (هذا سيأخذ أي شيء آخر يبدأ بـ api)
+/api/* http://mylibrary.tryasp.net/api/:splat              200!
+
+# 4. نظام الراوتر الخاص بـ React (دائماً في الأخير)
+/* /index.html                                             200
