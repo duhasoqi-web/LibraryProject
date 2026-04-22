@@ -155,6 +155,15 @@ export const employeeApi = {
         newGroupId: newGroupId.toString() // السيرفر يتوقعه كـ string حسب التوثيق
       }) 
     }),
+    resetPassword: (data: { employeeId: number; userPassword: string; targetNewPassword: string }) =>
+  request<any>("/Employee/reset-password", {
+    method: "POST",
+    body: JSON.stringify({
+      employeeId: data.employeeId.toString(), 
+      userPassword: data.userPassword,
+      targetNewPassword: data.targetNewPassword,
+    }),
+  }),
   transferOwnership: (data: { newAdminId: number; Password: string }) =>
     request<any>("/Employee/transfer-ownership", { 
       method: "POST", 

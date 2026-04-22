@@ -1,115 +1,127 @@
 import React, { useState, useMemo, useCallback, useEffect } from "react";
+import { AgGridReact } from "ag-grid-react";
+import {
+  AllCommunityModule,
+  ModuleRegistry,
+  themeQuartz,
+} from "ag-grid-community";
+import type { ColDef, ICellRendererParams } from "ag-grid-community";
 import {
   FileText, Search, Download, Printer, Filter, BarChart3,
   Layers, Archive, CalendarDays, ArrowUpDown, RefreshCw,
   Inbox, BookOpen, ChevronLeft, ChevronRight, PackageOpen,
   AlertCircle,
 } from "lucide-react";
-import { Button } from "@/ui/button";
+import { Button }                                   from "@/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
-import { Input } from "@/ui/input";
-import { Label } from "@/ui/label";
-import { Badge } from "@/ui/badge";
-import { Separator } from "@/ui/separator";
-import { Skeleton } from "@/ui/skeleton";
+import { Input }                                    from "@/ui/input";
+import { Label }                                    from "@/ui/label";
+import { Badge }                                    from "@/ui/badge";
+import { Separator }                                from "@/ui/separator";
+import { Skeleton }                                 from "@/ui/skeleton";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/ui/select";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/ui/table";
+
+// ── Register AG Grid modules once (v35 pattern)
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+// ── Theme: inherit the host app's font & sizing, keep AG Grid's quartz look
+const gridTheme = themeQuartz.withParams({
+  fontFamily:                 "inherit",
+  fontSize:                   13,
+  rowHeight:                  44,
+  headerHeight:               42,
+  cellHorizontalPaddingScale: 1.2,
+});
 
 
-type ReportTab = "material-type" | "entry-date" | "discarded" | "classification" | "supply-method";
+type ReportTab =
+  | "material-type"
+  | "entry-date"
+  | "discarded"
+  | "classification"
+  | "supply-method";
 
 interface FilterState {
-  materialType: string;
-  fromDate: string;
-  toDate: string;
+  materialType:       string;
+  fromDate:           string;
+  toDate:             string;
   fromClassification: string;
-  toClassification: string;
-  supplyMethod: string;
+  toClassification:   string;
+  supplyMethod:       string;
 }
 
 interface BookRecord {
-  serialNo: number | string;
-  title: string;
-  author: string;
+  serialNo:       number | string;
+  title:          string;
+  author:         string;
   classification: string;
-  materialType: string;
-  status: string;
-  entryDate?: string;
-  supplierName?: string;
-  supplyMethod?: string;
-  removeReason?: string;
-  discardDate?: string;
+  materialType:   string;
+  status:         string;
+  entryDate?:     string;
+  supplierName?:  string;
+  supplyMethod?:  string;
+  removeReason?:  string;
+  discardDate?:   string;
 }
 
-interface KpiData {
-  totalBooks: number;
-  borrowedBooks: number;
-  addedThisMonth: number;
-  availableReferences: number;
-}
 
-interface MaterialTypeItem {
-  id: number;
-  name: string;
-}
 
-interface SupplyMethodItem {
-  id: number;
-  name: string;
-}
+interface MaterialTypeItem { id: number; name: string }
+interface SupplyMethodItem  { id: number; name: string }
 
 // ═══════════════════════════════════════════════
-// ── Auth helper
+// ── Auth + Data helpers
 // ═══════════════════════════════════════════════
+
+const PAGE_SIZE = 8;
 
 const authHeaders = () => ({
   "Content-Type": "application/json",
   Authorization: `Bearer ${localStorage.getItem("token") ?? ""}`,
 });
 
-// ── mapper
 function mapRecord(b: any, idx: number): BookRecord {
   return {
-    serialNo:      b.serialNo       ?? b.serialNumber    ?? b.bookId        ?? idx + 1,
-    title:         b.title          ?? b.bookTitle        ?? "—",
-    author:        b.author         ?? b.authors          ?? b.authorName    ?? "—",
-    classification:b.classificationCode ?? b.classification ?? b.classCode  ?? "—",
-    materialType:  b.materialTypeName   ?? b.materialType  ?? b.bookType     ?? "—",
-    status:        b.status         ?? b.bookStatus        ?? "—",
-    entryDate:     b.entryDate      ?? b.supplyDate        ?? b.addDate      ?? undefined,
-    supplierName:  b.supplierName   ?? b.supplier          ?? undefined,
-    supplyMethod:  b.supplyMethodName ?? b.supplyMethod    ?? undefined,
-    removeReason: b.removeReason  ?? b.removeReasonName ?? b.discardReason ?? undefined,
-    discardDate:   b.removalDate    ?? b.removeDate        ?? b.discardDate  ?? undefined,
+    serialNo:       b.serialNo          ?? b.serialNumber    ?? b.bookId        ?? idx + 1,
+    title:          b.title             ?? b.bookTitle        ?? "—",
+    author:         b.author            ?? b.authors          ?? b.authorName    ?? "—",
+    classification: b.classificationCode ?? b.classification  ?? b.classCode    ?? "—",
+    materialType:   b.materialTypeName  ?? b.materialType     ?? b.bookType      ?? "—",
+    status:         b.status            ?? b.bookStatus        ?? "—",
+    entryDate:      b.entryDate         ?? b.supplyDate        ?? b.addDate      ?? undefined,
+    supplierName:   b.supplierName      ?? b.supplier          ?? undefined,
+    supplyMethod:   b.supplyMethodName  ?? b.supplyMethod      ?? undefined,
+    removeReason:   b.removeReason      ?? b.removeReasonName  ?? b.discardReason ?? undefined,
+    discardDate:    b.removalDate       ?? b.removeDate         ?? b.discardDate  ?? undefined,
   };
 }
 
-function extractData(res: any): { records: BookRecord[]; total: number } {
-  if (Array.isArray(res)) {
-    return { records: res.map(mapRecord), total: res.length };
-  }
-  const raw: any[] = res.data ?? res.items ?? res.result ?? [];
-  const total: number = res.totalRecords ?? res.total ?? res.totalCount ?? raw.length ?? 0;
-  return { records: raw.map(mapRecord), total };
+function extractData(res: any): {
+  records: BookRecord[];
+  total: number;
+  totalPages: number;
+} {
+  const raw: any[] = res.data ?? [];
+  const records = raw.map(mapRecord);
+
+  const total = res.totalCount ?? 0;
+  const pageSize = res.pageSize ?? raw.length;
+
+  // ✅ الحساب الصحيح من الباك
+  const totalPages = Math.ceil(total / pageSize);
+
+  return { records, total, totalPages };
 }
 
-// ═══════════════════════════════════════════════
-// ── Constants
-// ═══════════════════════════════════════════════
-
 const REPORT_TABS: { id: ReportTab; label: string; icon: React.ReactNode }[] = [
-  { id: "classification", label: "تقرير حسب أرقام التصنيف",  icon: <ArrowUpDown className="w-4 h-4" /> },
-  { id: "supply-method",  label: "تقرير حسب طريقة التزويد",  icon: <RefreshCw   className="w-4 h-4" /> },
-  { id: "material-type",  label: "تقرير حسب نوع المادة",     icon: <Layers      className="w-4 h-4" /> },
+  { id: "classification", label: "تقرير حسب أرقام التصنيف",  icon: <ArrowUpDown  className="w-4 h-4" /> },
+  { id: "supply-method",  label: "تقرير حسب طريقة التزويد",  icon: <RefreshCw    className="w-4 h-4" /> },
+  { id: "material-type",  label: "تقرير حسب نوع المادة",     icon: <Layers       className="w-4 h-4" /> },
   { id: "entry-date",     label: "تقرير حسب تاريخ الإدخال",  icon: <CalendarDays className="w-4 h-4" /> },
-  { id: "discarded",      label: "تقرير حسب الكتب المخرجة",  icon: <Archive     className="w-4 h-4" /> },
+  { id: "discarded",      label: "تقرير حسب الكتب المخرجة",  icon: <Archive      className="w-4 h-4" /> },
 ];
-
-const PAGE_SIZE = 8;
 
 const DEFAULT_FILTERS: FilterState = {
   materialType: "الكل", fromDate: "", toDate: "",
@@ -118,9 +130,7 @@ const DEFAULT_FILTERS: FilterState = {
 
 const COPYRIGHT_FOOTER = `© ${new Date().getFullYear()} جميع حقوق الملكية والفكرية محفوظة وفقاً لمذكرة التفاهم الموقعة بين جامعة فلسطين التقنية - خضوري وبلدية طولكرم`;
 
-// ═══════════════════════════════════════════════
-// ── Badge Components
-// ═══════════════════════════════════════════════
+
 
 const StatusBadge = ({ status }: { status: string }) => {
   const map: Record<string, string> = {
@@ -193,34 +203,12 @@ const DiscardReasonBadge = ({ reason }: { reason: string }) => {
   );
 };
 
+const StatusCellRenderer       = (p: ICellRendererParams) => <StatusBadge       status={p.value ?? ""} />;
+const MaterialTypeCellRenderer = (p: ICellRendererParams) => <MaterialTypeBadge type={p.value   ?? ""} />;
+const SupplyMethodCellRenderer = (p: ICellRendererParams) => <SupplyMethodBadge method={p.value ?? ""} />;
+const DiscardReasonCellRenderer= (p: ICellRendererParams) => <DiscardReasonBadge reason={p.value ?? ""}/>;
 
-const TableSkeleton = ({ rows = 8, cols = 6 }: { rows?: number; cols?: number }) => (
-  <div className="space-y-3 p-4">
-    {Array.from({ length: rows }).map((_, i) => (
-      <div key={i} className="flex items-center gap-4">
-        {Array.from({ length: cols }).map((_, j) => (
-          <Skeleton key={j} className={`h-5 flex-1 ${j === 0 ? "max-w-[60px]" : ""}`} />
-        ))}
-      </div>
-    ))}
-  </div>
-);
 
-const KpiSkeleton = () => (
-  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-    {Array.from({ length: 4 }).map((_, i) => (
-      <Card key={i} className="border shadow-sm">
-        <CardContent className="p-4 flex items-center gap-3">
-          <Skeleton className="w-11 h-11 rounded-xl shrink-0" />
-          <div className="space-y-2 flex-1">
-            <Skeleton className="h-7 w-16" />
-            <Skeleton className="h-3 w-24" />
-          </div>
-        </CardContent>
-      </Card>
-    ))}
-  </div>
-);
 
 const EmptyState = () => (
   <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -243,133 +231,101 @@ const ErrorState = ({ message, onRetry }: { message: string; onRetry?: () => voi
   </div>
 );
 
-// ═══════════════════════════════════════════════
-// ── Pagination
-// ═══════════════════════════════════════════════
+
 
 const ReportPagination = ({
   currentPage, totalPages, onPageChange,
 }: { currentPage: number; totalPages: number; onPageChange: (p: number) => void }) => {
   if (totalPages <= 1) return null;
-  const pages = Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-    if (totalPages <= 5) return i + 1;
-    if (currentPage <= 3) return i + 1;
-    if (currentPage >= totalPages - 2) return totalPages - 4 + i;
-    return currentPage - 2 + i;
+  
+  // عرض الأزرار من 1 إلى totalPages فقط (بدون أرقام إضافية)
+  const pages = Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+    if (totalPages <= 7) return i + 1;
+    if (currentPage <= 4) return i + 1;
+    if (currentPage >= totalPages - 3) return totalPages - 6 + i;
+    return currentPage - 3 + i;
   });
+
   return (
     <div className="flex items-center justify-center gap-1 mt-4" dir="ltr">
-      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}><ChevronLeft className="w-4 h-4" /></Button>
-      {pages[0] > 1 && (<><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onPageChange(1)}>1</Button>{pages[0] > 2 && <span className="px-1 text-muted-foreground">...</span>}</>)}
-      {pages.map(p => <Button key={p} variant={currentPage === p ? "default" : "outline"} size="icon" className="h-8 w-8" onClick={() => onPageChange(p)}>{p}</Button>)}
-      {pages[pages.length - 1] < totalPages && (<>{pages[pages.length - 1] < totalPages - 1 && <span className="px-1 text-muted-foreground">...</span>}<Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onPageChange(totalPages)}>{totalPages}</Button></>)}
-      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}><ChevronRight className="w-4 h-4" /></Button>
+      <Button 
+        variant="outline" 
+        size="icon" 
+        className="h-8 w-8" 
+        onClick={() => onPageChange(currentPage - 1)} 
+        disabled={currentPage === 1}
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </Button>
+      
+      {pages[0] > 1 && (
+        <>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onPageChange(1)}>1</Button>
+          {pages[0] > 2 && <span className="px-1 text-muted-foreground text-sm">...</span>}
+        </>
+      )}
+      
+      {pages.map(p => (
+        <Button 
+          key={p} 
+          variant={currentPage === p ? "default" : "outline"} 
+          size="icon" 
+          className="h-8 w-8" 
+          onClick={() => onPageChange(p)}
+        >
+          {p}
+        </Button>
+      ))}
+      
+      {pages[pages.length - 1] < totalPages && (
+        <>
+          {pages[pages.length - 1] < totalPages - 1 && <span className="px-1 text-muted-foreground text-sm">...</span>}
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onPageChange(totalPages)}>
+            {totalPages}
+          </Button>
+        </>
+      )}
+      
+      <Button 
+        variant="outline" 
+        size="icon" 
+        className="h-8 w-8" 
+        onClick={() => onPageChange(currentPage + 1)} 
+        disabled={currentPage === totalPages}
+      >
+        <ChevronRight className="w-4 h-4" />
+      </Button>
     </div>
   );
 };
 
 // ═══════════════════════════════════════════════
-// ── CSV Export
-// ═══════════════════════════════════════════════
-
-function buildCsvRow(cells: string[]): string {
-  return cells.map(cell => {
-    const escaped = String(cell ?? "").replace(/"/g, '""');
-    return /[,"\n\r]/.test(escaped) ? `"${escaped}"` : escaped;
-  }).join(",");
-}
-
-function exportToCsv(tab: ReportTab, data: BookRecord[], tabLabel: string) {
-  const today = new Date().toISOString().slice(0, 10);
-  let headers: string[] = [];
-  let rows: string[][] = [];
-
-  switch (tab) {
-    case "classification":
-    case "material-type":
-      headers = ["رقم التسلسل", "عنوان الكتاب", "المؤلف", "رقم التصنيف", "نوع المادة", "حالة الكتاب"];
-      rows = data.map(b => [String(b.serialNo), b.title, b.author, b.classification, b.materialType, b.status]);
-      break;
-    case "entry-date":
-      headers = ["رقم التسلسل", "عنوان الكتاب", "المؤلف", "تاريخ الإدخال", "رقم التصنيف", "نوع المادة", "حالة الكتاب"];
-      rows = data.map(b => [String(b.serialNo), b.title, b.author, b.entryDate ?? "", b.classification, b.materialType, b.status]);
-      break;
-    case "supply-method":
-      headers = ["رقم التسلسل", "عنوان الكتاب", "المؤلف", "رقم التصنيف", "اسم المزود", "طريقة التزويد", "تاريخ الإدخال", "حالة الكتاب"];
-      rows = data.map(b => [String(b.serialNo), b.title, b.author, b.classification, b.supplierName ?? "", b.supplyMethod ?? "", b.entryDate ?? "", b.status]);
-      break;
-    case "discarded":
-      headers = ["رقم التسلسل", "عنوان الكتاب", "المؤلف", "رقم التصنيف", "سبب الإخراج", "تاريخ الإخراج"];
-      rows = data.map(b => [String(b.serialNo), b.title, b.author, b.classification, b.removeReason ?? "", b.discardDate ?? ""]);
-      break;
-  }
-
-  const lines = [
-    buildCsvRow(["مكتبة بلدية طولكرم"]),
-    buildCsvRow([tabLabel]),
-    buildCsvRow([`تاريخ التصدير: ${today}`]),
-    buildCsvRow([`إجمالي السجلات: ${data.length}`]),
-    "",
-    buildCsvRow(headers),
-    ...rows.map(r => buildCsvRow(r)),
-  ];
-
-  const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `تقرير_${tab}_${today}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
-// ═══════════════════════════════════════════════
-// ── Print
+// ── Print helper
 // ═══════════════════════════════════════════════
 
 const buildPrintHTML = (title: string, headers: string[], rows: string[][], totalCount: number) => {
   const today = new Date();
-  const date = today.toLocaleDateString("ar-EG");
-  const day  = today.toLocaleDateString("ar-EG", { weekday: "long" });
+  const date  = today.toLocaleDateString("ar-EG");
+  const day   = today.toLocaleDateString("ar-EG", { weekday: "long" });
   return `<html dir="rtl"><head><meta charset="UTF-8"><title>${title}</title>
   <style>
-          @page{size:A4;margin:20mm}
-          body{font-family:"Cairo",Arial,sans-serif;direction:rtl;color:#2c3e50}
-          .header{text-align:center;margin-bottom:20px;position:relative}
-          .top-info{position:absolute;top:0;right:0;text-align:right;font-size:13px;color:#555}
-          .logos{display:flex;justify-content:center;align-items:center;gap:15px;margin-bottom:10px}
-          .logos img{width:75px;height:75px;object-fit:contain}
-          .divider{width:2px;height:55px;background-color:#999}
-          .header-title h1{margin:0;font-size:26px;font-weight:bold}
-          .header-title h2{margin:5px 0;font-size:17px;color:#555}
-          .total{font-size:13px;color:#555;margin-top:5px}
-          table{width:100%;border-collapse:collapse;margin-top:25px;font-size:13px}
-          th{background-color:#000;color:white;padding:10px;font-weight:bold}
-          td{padding:8px 10px;border:1px solid #ddd}
-          tr:nth-child(even){background-color:#f9fafb}
-          .status{padding:3px 8px;border-radius:12px;font-size:11px;font-weight:bold}
-          .available{background:#eafaf1;color:#27ae60}
-          .borrowed{background:#fff4e5;color:#f39c12}
-          .reserved{background:#fff0f6;color:#e67e22}
-          .removed{background:#fdecea;color:#c0392b}
-          .footer {
-  margin-top: 40px;
-  border-top: 1px solid #ccc;
-  padding-top: 10px;
-  font-size: 12px;
-  text-align: center;
-  color: #777;
-}
-  @page {
-  size: A4;
-  margin: 0;
-}
-body {
-  margin: 20mm;
-}          tr{page-break-inside:avoid}
-        </style></head><body>
+    @page{size:A4;margin:0}
+    body{margin:20mm;font-family:"Cairo",Arial,sans-serif;direction:rtl;color:#2c3e50}
+    .header{text-align:center;margin-bottom:20px;position:relative}
+    .top-info{position:absolute;top:0;right:0;text-align:right;font-size:13px;color:#555}
+    .logos{display:flex;justify-content:center;align-items:center;gap:15px;margin-bottom:10px}
+    .logos img{width:75px;height:75px;object-fit:contain}
+    .divider{width:2px;height:55px;background-color:#999}
+    .header-title h1{margin:0;font-size:26px;font-weight:bold}
+    .header-title h2{margin:5px 0;font-size:17px;color:#555}
+    .total{font-size:13px;color:#555;margin-top:5px}
+    table{width:100%;border-collapse:collapse;margin-top:25px;font-size:13px}
+    th{background-color:#000;color:white;padding:10px;font-weight:bold}
+    td{padding:8px 10px;border:1px solid #ddd}
+    tr:nth-child(even){background-color:#f9fafb}
+    tr{page-break-inside:avoid}
+    .footer{margin-top:40px;border-top:1px solid #ccc;padding-top:10px;font-size:12px;text-align:center;color:#777}
+  </style></head><body>
 <div class="header">
   <div class="top-info"><div>اليوم: ${day}</div><div>التاريخ: ${date}</div></div>
   <div class="logos"><img src="/Logo.jpeg"/><div class="divider"></div><img src="/slogan.jpeg"/></div>
@@ -380,36 +336,26 @@ body {
   </div>
 </div>
 <table>
-<thead>
-<tr>
-${headers.map(h => `<th>${h}</th>`).join("")}
-</tr>
-</thead>
-<tbody>
-${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}
-</tbody>
+  <thead><tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr>
+  </thead>
+  <tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody>
 </table>
 <div class="footer">${COPYRIGHT_FOOTER}</div>
 </body></html>`;
 };
 
-// ═══════════════════════════════════════════════
-// ── Main Component
-// ═══════════════════════════════════════════════
+
 
 const Reports = () => {
-  const [activeTab, setActiveTab]     = useState<ReportTab>("classification");
-  const [isLoading, setIsLoading]     = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [error, setError]             = useState<string | null>(null);
+  const [activeTab, setActiveTab]       = useState<ReportTab>("classification");
+  const [isLoading, setIsLoading]       = useState(false);
+  const [hasSearched, setHasSearched]   = useState(false);
+  const [currentPage, setCurrentPage]   = useState(1);
+  const [error, setError]               = useState<string | null>(null);
 
-  const [reportData, setReportData]   = useState<BookRecord[]>([]);
+  const [reportData, setReportData]     = useState<BookRecord[]>([]);
   const [totalRecords, setTotalRecords] = useState(0);
-  const totalPages = Math.ceil(totalRecords / PAGE_SIZE);
-
-  const [kpiData, setKpiData]         = useState<KpiData | null>(null);
-  const [kpiLoading, setKpiLoading]   = useState(true);
+  const [totalPages, setTotalPages]     = useState(0);
 
   const [materialTypes, setMaterialTypes]               = useState<MaterialTypeItem[]>([]);
   const [materialTypesLoading, setMaterialTypesLoading] = useState(false);
@@ -419,49 +365,21 @@ const Reports = () => {
 
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
 
-  // ── KPI
-  useEffect(() => {
-    setKpiLoading(true);
-    (async () => {
-      try {
-        const res = await fetch("/api/BookReport/kpi", { headers: authHeaders() });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data: KpiData = await res.json();
-        setKpiData(data);
-      } catch {
-        setKpiData(null);
-      } finally {
-        setKpiLoading(false);
-      }
-    })();
-  }, []);
-
-  // ── Material Types
   useEffect(() => {
     setMaterialTypesLoading(true);
     (async () => {
       try {
-        const res = await fetch("/api/MaterialType", { headers: authHeaders() });
+        const res  = await fetch("/api/MaterialType", { headers: authHeaders() });
         if (!res.ok) throw new Error();
         const data: any[] = await res.json();
-        setMaterialTypes(data.map(m => ({
-          id:   m.materialTypeId ?? m.id,
-          name: m.materialName   ?? m.name,
-        })));
+        setMaterialTypes(data.map(m => ({ id: m.materialTypeId ?? m.id, name: m.materialName ?? m.name })));
       } catch {
         setMaterialTypes([
-          { id: 1, name: "كتاب"            },
-          { id: 2, name: "مرجع"            },
-          { id: 3, name: "كتاب اطفال"      },
-          { id: 4, name: "قصة"             },
-          { id: 5, name: "مجموعة"          },
-          { id: 6, name: "دورية"           },
-          { id: 7, name: "رسالة جامعية"   },
-          { id: 8, name: "سمعيات بصريات"  },
+          { id:1,name:"كتاب" },{ id:2,name:"مرجع" },{ id:3,name:"كتاب اطفال" },
+          { id:4,name:"قصة" },{ id:5,name:"مجموعة" },{ id:6,name:"دورية" },
+          { id:7,name:"رسالة جامعية" },{ id:8,name:"سمعيات بصريات" },
         ]);
-      } finally {
-        setMaterialTypesLoading(false);
-      }
+      } finally { setMaterialTypesLoading(false); }
     })();
   }, []);
 
@@ -470,357 +388,275 @@ const Reports = () => {
     setSupplyMethodsLoading(true);
     (async () => {
       try {
-        const res = await fetch("/api/supply", { headers: authHeaders() });
+      const res  = await fetch("/api/BookReport/supply", { headers: authHeaders() });
         if (!res.ok) throw new Error();
         const data: any[] = await res.json();
-        setSupplyMethods(data.map(s => ({
-          id:   s.supplyMethodId   ?? s.id,
-          name: s.supplyMethodName ?? s.methodName ?? s.name,
-        })));
+        setSupplyMethods(data.map(s => ({ id: s.supplyMethodId ?? s.id, name: s.supplyMethodName ?? s.methodName ?? s.name })));
       } catch {
-        setSupplyMethods([
-          { id: 1, name: "شراء"  },
-          { id: 2, name: "إهداء" },
-          { id: 3, name: "تبادل" },
-        ]);
-      } finally {
-        setSupplyMethodsLoading(false);
-      }
+        setSupplyMethods([{ id:1,name:"شراء" },{ id:2,name:"إهداء" },{ id:3,name:"تبادل" }]);
+      } finally { setSupplyMethodsLoading(false); }
     })();
   }, []);
 
-  // ── MAIN FETCH FUNCTION
+  // ── Build URLSearchParams (shared by fetch / export / print)
+  const buildParams = useCallback((page: number): URLSearchParams => {
+    const p = new URLSearchParams({ page: String(page) });
+    switch (activeTab) {
+      case "material-type":
+        if (filters.materialType && filters.materialType !== "الكل") p.set("materialType", filters.materialType);
+        if (filters.fromDate) p.set("from", filters.fromDate + "T00:00:00Z");
+        if (filters.toDate)   p.set("to",   filters.toDate   + "T23:59:59Z");
+        break;
+      case "entry-date":
+        if (filters.fromDate) p.set("from", filters.fromDate + "T00:00:00Z");
+        if (filters.toDate)   p.set("to",   filters.toDate   + "T23:59:59Z");
+        break;
+      case "discarded":
+        if (filters.fromDate) p.set("from", filters.fromDate + "T00:00:00Z");
+        if (filters.toDate)   p.set("to",   filters.toDate   + "T23:59:59Z");
+        break;
+      case "classification":
+        if (filters.fromClassification) p.set("fromClassification", filters.fromClassification);
+        if (filters.toClassification)   p.set("toClassification",   filters.toClassification);
+        break;
+      case "supply-method":
+        if (filters.supplyMethod && filters.supplyMethod !== "الكل") p.set("supplyMethod", filters.supplyMethod);
+        if (filters.fromDate) p.set("from", filters.fromDate + "T00:00:00Z");
+        if (filters.toDate)   p.set("to",   filters.toDate   + "T23:59:59Z");
+        break;
+    }
+    return p;
+  }, [activeTab, filters]);
+
+  const tabEndpoint = useCallback((params: URLSearchParams): string => ({
+    "material-type":  `/api/BookReport/material-type?${params}`,
+    "entry-date":     `/api/BookReport/entry-date?${params}`,
+    "discarded":      `/api/BookReport/issued?${params}`,
+    "classification": `/api/BookReport/classification?${params}`,
+    "supply-method":  `/api/BookReport/supply?${params}`,
+  }[activeTab]), [activeTab]);
+
+  // ── MAIN FETCH (محسّن)
   const fetchReport = useCallback(async (page: number) => {
     setIsLoading(true);
     setError(null);
-
     try {
-      let url = "";
-      const params = new URLSearchParams();
-
-      params.set("page", String(page));
-
-      switch (activeTab) {
-        case "material-type":
-          if (filters.materialType && filters.materialType !== "الكل") {
-            params.set("materialType", filters.materialType);
-          }
-          if (filters.fromDate) {
-            params.set("from", filters.fromDate + "T00:00:00Z");
-          }
-          if (filters.toDate) {
-            params.set("to", filters.toDate + "T23:59:59Z");
-          }
-          url = `/api/BookReport/material-type?${params}`;
-          break;
-
-        case "entry-date":
-          if (filters.fromDate) {
-            params.set("from", filters.fromDate + "T00:00:00Z");
-          }
-          if (filters.toDate) {
-            params.set("to", filters.toDate + "T23:59:59Z");
-          }
-          url = `/api/BookReport/entry-date?${params}`;
-          break;
-
-        case "discarded":
-          if (filters.fromDate) {
-            params.set("from", filters.fromDate + "T00:00:00Z");
-          }
-          if (filters.toDate) {
-            params.set("to", filters.toDate + "T23:59:59Z");
-          }
-          url = `/api/BookReport/issued?${params}`;
-          break;
-
-        case "classification":
-          if (filters.fromClassification) {
-            params.set("fromClassification", filters.fromClassification);
-          }
-          if (filters.toClassification) {
-            params.set("toClassification", filters.toClassification);
-          }
-          url = `/api/BookReport/classification?${params}`;
-          break;
-
-        case "supply-method":
-          // ✅ دعم الفلترة حسب طريقة التزويد والتاريخ
-          if (filters.supplyMethod && filters.supplyMethod !== "الكل") {
-            params.set("supplyMethod", filters.supplyMethod);
-          }
-          if (filters.fromDate) {
-            params.set("from", filters.fromDate + "T00:00:00Z");
-          }
-          if (filters.toDate) {
-            params.set("to", filters.toDate + "T23:59:59Z");
-          }
-          url = `/api/BookReport/supply?${params}`;
-          break;
-      }
-
-      const res = await fetch(url, { headers: authHeaders() });
-
+      const res = await fetch(tabEndpoint(buildParams(page)), { headers: authHeaders() });
       if (res.status === 401) {
         setError("انتهت صلاحية الجلسة، يرجى تسجيل الدخول مجدداً");
-        setReportData([]);
-        setTotalRecords(0);
+        setReportData([]); setTotalRecords(0); setTotalPages(0);
         return;
       }
-
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error((body as any).message ?? `HTTP ${res.status}`);
       }
-
       const json = await res.json();
-      const { records, total } = extractData(json);
-
+      const { records, total, totalPages: pages } = extractData(json);
       setReportData(records);
       setTotalRecords(total);
-
+      setTotalPages(pages);
     } catch (err) {
       setError((err as Error).message);
-      setReportData([]);
-      setTotalRecords(0);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeTab, filters]);
+      setReportData([]); setTotalRecords(0); setTotalPages(0);
+    } finally { setIsLoading(false); }
+  }, [tabEndpoint, buildParams]);
 
-  const handleSearch = useCallback(() => {
-    setHasSearched(true);
-    setCurrentPage(1);
-    fetchReport(1);
-  }, [fetchReport]);
-
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
-    fetchReport(page);
-  }, [fetchReport]);
-
-  const handleTabChange = useCallback((tab: ReportTab) => {
+  const handleSearch     = useCallback(() => { setHasSearched(true); setCurrentPage(1); fetchReport(1); }, [fetchReport]);
+  const handlePageChange = useCallback((p: number) => { setCurrentPage(p); fetchReport(p); }, [fetchReport]);
+  const handleTabChange  = useCallback((tab: ReportTab) => {
     setActiveTab(tab);
-    setHasSearched(false);
-    setCurrentPage(1);
-    setReportData([]);
-    setTotalRecords(0);
-    setError(null);
-    setFilters(DEFAULT_FILTERS);
+    setHasSearched(false); setCurrentPage(1);
+    setReportData([]); setTotalRecords(0); setTotalPages(0);
+    setError(null); setFilters(DEFAULT_FILTERS);
   }, []);
 
-  const handleExportCSV = useCallback(async () => {
-    try {
-      const typeMap: Record<ReportTab, string> = {
-        "material-type":  "material",
-        "entry-date":     "entry",
-        "discarded":      "issued",
-        "classification": "classification",
-        "supply-method":  "supply",
-      };
+const handleExport = useCallback(async () => {
+  try {
+    const typeMap: Record<ReportTab, string> = {
+      "material-type": "material",
+      "entry-date": "entry",
+      "discarded": "issued",
+      "classification": "classification",
+      "supply-method": "supply",
+    };
 
-      const params = new URLSearchParams();
-      params.set("type", typeMap[activeTab]);
+    const params = buildParams(1);
+    params.set("type", typeMap[activeTab]);
 
-      switch (activeTab) {
-        case "material-type":
-          if (filters.materialType && filters.materialType !== "الكل")
-            params.set("materialType", filters.materialType);
-          if (filters.fromDate) params.set("from", filters.fromDate + "T00:00:00Z");
-          if (filters.toDate)   params.set("to",   filters.toDate   + "T23:59:59Z");
-          break;
-        case "entry-date":
-          if (filters.fromDate) params.set("from", filters.fromDate + "T00:00:00Z");
-          if (filters.toDate)   params.set("to",   filters.toDate   + "T23:59:59Z");
-          break;
-        case "discarded":
-          if (filters.fromDate) params.set("from", filters.fromDate + "T00:00:00Z");
-          if (filters.toDate)   params.set("to",   filters.toDate   + "T23:59:59Z");
-          break;
-        case "classification":
-          if (filters.fromClassification) params.set("fromClassification", filters.fromClassification);
-          if (filters.toClassification)   params.set("toClassification",   filters.toClassification);
-          break;
-        case "supply-method":
-          // ✅ دعم طريقة التزويد والتاريخ في التصدير
-          if (filters.supplyMethod && filters.supplyMethod !== "الكل")
-            params.set("supplyMethod", filters.supplyMethod);
-          if (filters.fromDate) params.set("from", filters.fromDate + "T00:00:00Z");
-          if (filters.toDate)   params.set("to",   filters.toDate   + "T23:59:59Z");
-          break;
-      }
+    const res = await fetch(`/api/BookReportExport/export?${params}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token") ?? ""}`,
+      },
+    });
 
-      const res = await fetch(`/api/BookReportExport/export?${params}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token") ?? ""}`,
-        },
-      });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const disposition = res.headers.get("Content-Disposition");
 
-      const disposition = res.headers.get("Content-Disposition");
-      const today = new Date().toISOString().slice(0, 10);
-      let filename = `تقرير_${activeTab}_${today}`;
+    let filename = "تقرير.xlsx";
 
-      if (disposition) {
-        const match = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)/i);
-        if (match) filename = decodeURIComponent(match[1]);
+    if (disposition) {
+      // ✅ 1) UTF-8 filename*
+      const utf8Match = disposition.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
+
+      if (utf8Match?.[1]) {
+        filename = decodeURIComponent(utf8Match[1]);
       } else {
-        const ct = res.headers.get("Content-Type") ?? "";
-        if (ct.includes("spreadsheet") || ct.includes("xlsx")) filename += ".xlsx";
-        else if (ct.includes("pdf"))  filename += ".pdf";
-        else filename += ".csv";
+        // ✅ 2) fallback filename=""
+        const normalMatch = disposition.match(/filename\s*=\s*"?([^"]+)"?/i);
+        if (normalMatch?.[1]) {
+          filename = normalMatch[1];
+        }
       }
-
-      const blob = await res.blob();
-      const url  = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href     = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-    } catch (err) {
-      alert(`فشل التصدير: ${(err as Error).message}`);
     }
-  }, [activeTab, filters]);
 
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    alert(`فشل التصدير: ${(err as Error).message}`);
+  }
+}, [activeTab, buildParams]);
+
+  // ── Print (fetch all pages then open print window)
   const handlePrint = useCallback(async () => {
     try {
       const tabLabel = REPORT_TABS.find(t => t.id === activeTab)?.label ?? "تقرير";
-      
       let allData: BookRecord[] = [];
       let page = 1;
       let keepGoing = true;
 
       while (keepGoing) {
-        const params = new URLSearchParams();
-        params.set("page", String(page));
-
-        let url = "";
-        switch (activeTab) {
-          case "material-type":
-            if (filters.materialType && filters.materialType !== "الكل")
-              params.set("materialType", filters.materialType);
-            if (filters.fromDate) params.set("from", filters.fromDate + "T00:00:00Z");
-            if (filters.toDate)   params.set("to",   filters.toDate   + "T23:59:59Z");
-            url = `/api/BookReport/material-type?${params}`;
-            break;
-          case "entry-date":
-            if (filters.fromDate) params.set("from", filters.fromDate + "T00:00:00Z");
-            if (filters.toDate)   params.set("to",   filters.toDate   + "T23:59:59Z");
-            url = `/api/BookReport/entry-date?${params}`;
-            break;
-          case "discarded":
-            if (filters.fromDate) params.set("from", filters.fromDate + "T00:00:00Z");
-            if (filters.toDate)   params.set("to",   filters.toDate   + "T23:59:59Z");
-            url = `/api/BookReport/issued?${params}`;
-            break;
-          case "classification":
-            if (filters.fromClassification)
-              params.set("fromClassification", filters.fromClassification);
-            if (filters.toClassification)
-              params.set("toClassification", filters.toClassification);
-            url = `/api/BookReport/classification?${params}`;
-            break;
-          case "supply-method":
-            // ✅ دعم طريقة التزويد والتاريخ في الطباعة
-            if (filters.supplyMethod && filters.supplyMethod !== "الكل")
-              params.set("supplyMethod", filters.supplyMethod);
-            if (filters.fromDate) params.set("from", filters.fromDate + "T00:00:00Z");
-            if (filters.toDate)   params.set("to",   filters.toDate   + "T23:59:59Z");
-            url = `/api/BookReport/supply?${params}`;
-            break;
-        }
-
-        const res = await fetch(url, { headers: authHeaders() });
+        const params = buildParams(page);
+        const res    = await fetch(tabEndpoint(params), { headers: authHeaders() });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        const { records, total } = extractData(json);
-
+        const { records, total } = extractData(await res.json());
         allData = [...allData, ...records];
-
-        const totalPages = Math.ceil(total / PAGE_SIZE);
-        if (page >= totalPages || records.length === 0) {
-          keepGoing = false;
-        } else {
-          page++;
-        }
+        if (page >= Math.ceil(total / PAGE_SIZE) || records.length === 0) keepGoing = false;
+        else page++;
       }
 
       let headers: string[] = [];
-      let rows: string[][] = [];
-
+      let rows:    string[][] = [];
       switch (activeTab) {
         case "classification":
         case "material-type":
-          headers = ["#", "عنوان الكتاب", "المؤلف", "رقم التصنيف", "نوع المادة", "الحالة"];
-          rows = allData.map(b => [
-            String(b.serialNo), b.title, b.author,
-            b.classification, b.materialType, b.status,
-          ]);
+          headers = ["#","عنوان الكتاب","المؤلف","رقم التصنيف","نوع المادة","الحالة"];
+          rows = allData.map(b => [String(b.serialNo),b.title,b.author,b.classification,b.materialType,b.status]);
           break;
         case "entry-date":
-          headers = ["#", "عنوان الكتاب", "المؤلف", "تاريخ الإدخال", "رقم التصنيف", "نوع المادة", "الحالة"];
-          rows = allData.map(b => [
-            String(b.serialNo), b.title, b.author,
-            b.entryDate ?? "", b.classification, b.materialType, b.status,
-          ]);
+          headers = ["#","عنوان الكتاب","المؤلف","تاريخ الإدخال","رقم التصنيف","نوع المادة","الحالة"];
+          rows = allData.map(b => [String(b.serialNo),b.title,b.author,b.entryDate??"",b.classification,b.materialType,b.status]);
           break;
         case "supply-method":
-          headers = ["#", "عنوان الكتاب", "المؤلف", "رقم التصنيف", "اسم المزود", "طريقة التزويد", "تاريخ الإدخال", "الحالة"];
-          rows = allData.map(b => [
-            String(b.serialNo), b.title, b.author, b.classification,
-            b.supplierName ?? "", b.supplyMethod ?? "", b.entryDate ?? "", b.status,
-          ]);
+          headers = ["#","عنوان الكتاب","المؤلف","رقم التصنيف","اسم المزود","طريقة التزويد","تاريخ الإدخال","الحالة"];
+          rows = allData.map(b => [String(b.serialNo),b.title,b.author,b.classification,b.supplierName??"",b.supplyMethod??"",b.entryDate??"",b.status]);
           break;
         case "discarded":
-          headers = ["#", "عنوان الكتاب", "المؤلف", "رقم التصنيف", "سبب الإخراج", "تاريخ الإخراج"];
-          rows = allData.map(b => [
-            String(b.serialNo), b.title, b.author,
-            b.classification, b.removeReason ?? "", b.discardDate ?? "",
-          ]);
+          headers = ["#","عنوان الكتاب","المؤلف","رقم التصنيف","سبب الإخراج","تاريخ الإخراج"];
+          rows = allData.map(b => [String(b.serialNo),b.title,b.author,b.classification,b.removeReason??"",b.discardDate??""]);
           break;
       }
 
       const html = buildPrintHTML(tabLabel, headers, rows, allData.length);
-      const win = window.open("", "", "width=1200,height=800");
+      const win  = window.open("", "", "width=1200,height=800");
       if (!win) return;
       win.document.write(html);
       win.document.close();
-      const images = win.document.querySelectorAll("img");
-      await Promise.all(
-        Array.from(images).map(img =>
-          img.complete
-            ? Promise.resolve()
-            : new Promise<void>(resolve => {
-                img.onload  = () => resolve();
-                img.onerror = () => resolve();
-              })
-        )
-      );
-      win.focus();
-      win.print();
+      const imgs = win.document.querySelectorAll("img");
+      await Promise.all(Array.from(imgs).map(img =>
+        img.complete ? Promise.resolve()
+          : new Promise<void>(resolve => { img.onload = img.onerror = () => resolve(); })
+      ));
+      win.focus(); win.print();
+    } catch (err) { alert(`فشل الطباعة: ${(err as Error).message}`); }
+  }, [activeTab, buildParams, tabEndpoint]);
 
-    } catch (err) {
-      alert(`فشل الطباعة: ${(err as Error).message}`);
+  const columnDefs = useMemo<ColDef<BookRecord>[]>(() => {
+    // ── Reusable column objects
+    const serial: ColDef<BookRecord> = {
+      headerName: "#", field: "serialNo", width: 72, sortable: false,
+      cellClass: "font-mono text-xs text-muted-foreground",
+    };
+    const title: ColDef<BookRecord> = {
+      headerName: "عنوان الكتاب", field: "title", flex: 2, minWidth: 180,
+      cellClass: "font-medium text-sm",
+    };
+    const author: ColDef<BookRecord> = {
+      headerName: "المؤلف", field: "author", flex: 1, minWidth: 130,
+    };
+    const classification: ColDef<BookRecord> = {
+      headerName: "رقم التصنيف", field: "classification", width: 130,
+      cellClass: "font-mono text-sm",
+    };
+    const materialType: ColDef<BookRecord> = {
+      headerName: "نوع المادة", field: "materialType", width: 140,
+      cellRenderer: MaterialTypeCellRenderer,
+      cellStyle: { display: "flex", alignItems: "center" },
+    };
+    const status: ColDef<BookRecord> = {
+      headerName: "حالة الكتاب", field: "status", width: 120,
+      cellRenderer: StatusCellRenderer,
+      cellStyle: { display: "flex", alignItems: "center" },
+    };
+    const entryDate: ColDef<BookRecord> = {
+      headerName: "تاريخ الإدخال", field: "entryDate", width: 145,
+      cellClass: "font-mono text-sm",
+      valueFormatter: p => p.value ?? "—",
+    };
+    const supplierName: ColDef<BookRecord> = {
+      headerName: "اسم المزود", field: "supplierName", flex: 1, minWidth: 120,
+      valueFormatter: p => p.value ?? "—",
+    };
+    const supplyMethod: ColDef<BookRecord> = {
+      headerName: "طريقة التزويد", field: "supplyMethod", width: 140,
+      cellRenderer: SupplyMethodCellRenderer,
+      cellStyle: { display: "flex", alignItems: "center" },
+    };
+    const removeReason: ColDef<BookRecord> = {
+      headerName: "سبب الإخراج", field: "removeReason", width: 140,
+      cellRenderer: DiscardReasonCellRenderer,
+      cellStyle: { display: "flex", alignItems: "center" },
+    };
+    const discardDate: ColDef<BookRecord> = {
+      headerName: "تاريخ الإخراج", field: "discardDate", width: 145,
+      cellClass: "font-mono text-sm",
+      valueFormatter: p => p.value ?? "—",
+    };
+
+    switch (activeTab) {
+      case "material-type":
+      case "classification":
+        return [serial, title, author, classification, materialType, status];
+      case "entry-date":
+        return [serial, title, author, entryDate, classification, materialType, status];
+      case "supply-method":
+        return [serial, title, author, classification, supplierName, supplyMethod, entryDate, status];
+      case "discarded":
+        return [serial, title, author, classification, removeReason, discardDate];
+      default:
+        return [serial, title, author, classification, materialType, status];
     }
-  }, [activeTab, filters]);
+  }, [activeTab]);
 
-  const todayFormatted = new Date().toLocaleDateString("ar-PS", { year: "numeric", month: "long", day: "numeric" });
+  const defaultColDef = useMemo<ColDef>(() => ({
+    sortable:        true,
+    resizable:       true,
+    suppressMovable: false,
+    filter: true,       
+    headerClass:     "font-bold text-sm",
+  }), []);
 
-  // بناء بطاقات KPI
-  const KPI_CARDS = useMemo(() => {
-    if (!kpiData) return [];
-    return [
-      { label: "إجمالي الكتب", value: kpiData.totalBooks.toLocaleString("ar-EG"), icon: <BookOpen className="w-5 h-5" />, cls: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
-      { label: "الكتب المعارة", value: kpiData.borrowedBooks.toLocaleString("ar-EG"), icon: <BookOpen className="w-5 h-5" />, cls: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" },
-      { label: "المضافة هذا الشهر", value: kpiData.addedThisMonth.toLocaleString("ar-EG"), icon: <CalendarDays className="w-5 h-5" />, cls: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" },
-      { label: "المراجع المتاحة", value: kpiData.availableReferences.toLocaleString("ar-EG"), icon: <Layers className="w-5 h-5" />, cls: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
-    ];
-  }, [kpiData]);
 
   const summaryStats = useMemo(() => ({
     available:   reportData.filter(b => b.status === "متاح"  || b.status === "Available").length,
@@ -829,56 +665,51 @@ const Reports = () => {
     unavailable: reportData.filter(b => ["تالف","مخرج","مفقود","Removed"].includes(b.status)).length,
   }), [reportData]);
 
+  const todayFormatted = new Date().toLocaleDateString("ar-PS", { year:"numeric", month:"long", day:"numeric" });
 
   const renderFilterPanel = () => {
+    const dateFields = (
+      <>
+        <div className="flex-1 w-full sm:w-auto">
+          <Label className="mb-1.5 text-sm font-medium text-foreground/80">من تاريخ</Label>
+          <Input type="date" value={filters.fromDate} max={new Date().toISOString().slice(0,10)}
+            onChange={e => setFilters(f => ({ ...f, fromDate: e.target.value }))} />
+        </div>
+        <div className="flex-1 w-full sm:w-auto">
+          <Label className="mb-1.5 text-sm font-medium text-foreground/80">إلى تاريخ</Label>
+          <Input type="date" value={filters.toDate} max={new Date().toISOString().slice(0,10)}
+            onChange={e => setFilters(f => ({ ...f, toDate: e.target.value }))} />
+        </div>
+      </>
+    );
+
     switch (activeTab) {
-    case "material-type":
-  return (
-    <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
-      <div className="flex-1 w-full sm:w-auto">
-        <Label className="mb-1.5 text-sm font-medium text-foreground/80">نوع المادة</Label>
-        <Select value={filters.materialType} onValueChange={val => setFilters(f => ({ ...f, materialType: val }))}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder={materialTypesLoading ? "جاري التحميل..." : "اختر نوع المادة"} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="الكل">الكل</SelectItem>
-            {materialTypes.map(t => (
-              <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      {/* إضافة حقول التاريخ */}
-      <div className="flex-1 w-full sm:w-auto">
-        <Label className="mb-1.5 text-sm font-medium text-foreground/80">من تاريخ</Label>
-        <Input type="date" value={filters.fromDate} max={new Date().toISOString().slice(0, 10)} onChange={e => setFilters(f => ({ ...f, fromDate: e.target.value }))} />
-      </div>
-      <div className="flex-1 w-full sm:w-auto">
-        <Label className="mb-1.5 text-sm font-medium text-foreground/80">إلى تاريخ</Label>
-        <Input type="date" value={filters.toDate} max={new Date().toISOString().slice(0, 10)} onChange={e => setFilters(f => ({ ...f, toDate: e.target.value }))} />
-      </div>
-      <Button onClick={handleSearch} className="min-w-[120px]">
-        <Search className="w-4 h-4 ml-1.5" />بحث
-      </Button>
-    </div>
-  );
+      case "material-type":
+        return (
+          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
+            <div className="flex-1 w-full sm:w-auto">
+              <Label className="mb-1.5 text-sm font-medium text-foreground/80">نوع المادة</Label>
+              <Select value={filters.materialType} onValueChange={val => setFilters(f => ({ ...f, materialType: val }))}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={materialTypesLoading ? "جاري التحميل..." : "اختر نوع المادة"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="الكل">الكل</SelectItem>
+                  {materialTypes.map(t => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {dateFields}
+            <Button onClick={handleSearch} className="min-w-[120px]"><Search className="w-4 h-4 ml-1.5"/>بحث</Button>
+          </div>
+        );
 
       case "entry-date":
       case "discarded":
         return (
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
-            <div className="flex-1 w-full sm:w-auto">
-              <Label className="mb-1.5 text-sm font-medium text-foreground/80">من تاريخ</Label>
-              <Input type="date" value={filters.fromDate} max={new Date().toISOString().slice(0, 10)} onChange={e => setFilters(f => ({ ...f, fromDate: e.target.value }))} />
-            </div>
-            <div className="flex-1 w-full sm:w-auto">
-              <Label className="mb-1.5 text-sm font-medium text-foreground/80">إلى تاريخ</Label>
-              <Input type="date" value={filters.toDate} max={new Date().toISOString().slice(0, 10)} onChange={e => setFilters(f => ({ ...f, toDate: e.target.value }))} />
-            </div>
-            <Button onClick={handleSearch} className="min-w-[120px]">
-              <Search className="w-4 h-4 ml-1.5" />بحث
-            </Button>
+            {dateFields}
+            <Button onClick={handleSearch} className="min-w-[120px]"><Search className="w-4 h-4 ml-1.5"/>بحث</Button>
           </div>
         );
 
@@ -887,15 +718,15 @@ const Reports = () => {
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
             <div className="flex-1 w-full sm:w-auto">
               <Label className="mb-1.5 text-sm font-medium text-foreground/80">من رقم التصنيف</Label>
-              <Input type="text" placeholder="مثال: 000" value={filters.fromClassification} onChange={e => setFilters(f => ({ ...f, fromClassification: e.target.value }))} />
+              <Input type="text" placeholder="مثال: 000" value={filters.fromClassification}
+                onChange={e => setFilters(f => ({ ...f, fromClassification: e.target.value }))} />
             </div>
             <div className="flex-1 w-full sm:w-auto">
               <Label className="mb-1.5 text-sm font-medium text-foreground/80">إلى رقم التصنيف</Label>
-              <Input type="text" placeholder="مثال: 999" value={filters.toClassification} onChange={e => setFilters(f => ({ ...f, toClassification: e.target.value }))} />
+              <Input type="text" placeholder="مثال: 999" value={filters.toClassification}
+                onChange={e => setFilters(f => ({ ...f, toClassification: e.target.value }))} />
             </div>
-            <Button onClick={handleSearch} className="min-w-[120px]">
-              <Search className="w-4 h-4 ml-1.5" />بحث
-            </Button>
+            <Button onClick={handleSearch} className="min-w-[120px]"><Search className="w-4 h-4 ml-1.5"/>بحث</Button>
           </div>
         );
 
@@ -910,198 +741,67 @@ const Reports = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="الكل">الكل</SelectItem>
-                  {supplyMethods.map(s => (
-                    <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
-                  ))}
+                  {supplyMethods.map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            {/* ✅ حقول التاريخ لتبويب طريقة التزويد */}
-            <div className="flex-1 w-full sm:w-auto">
-              <Label className="mb-1.5 text-sm font-medium text-foreground/80">من تاريخ</Label>
-              <Input type="date" value={filters.fromDate} max={new Date().toISOString().slice(0, 10)} onChange={e => setFilters(f => ({ ...f, fromDate: e.target.value }))} />
-            </div>
-            <div className="flex-1 w-full sm:w-auto">
-              <Label className="mb-1.5 text-sm font-medium text-foreground/80">إلى تاريخ</Label>
-              <Input type="date" value={filters.toDate} max={new Date().toISOString().slice(0, 10)} onChange={e => setFilters(f => ({ ...f, toDate: e.target.value }))} />
-            </div>
-            <Button onClick={handleSearch} className="min-w-[120px]">
-              <Search className="w-4 h-4 ml-1.5" />بحث
-            </Button>
+            {dateFields}
+            <Button onClick={handleSearch} className="min-w-[120px]"><Search className="w-4 h-4 ml-1.5"/>بحث</Button>
           </div>
         );
 
-      default:
-        return null;
+      default: return null;
     }
   };
 
-  // ═══════════════════════════════════════════════
-  // ── Table Renderer
-  // ═══════════════════════════════════════════════
-
-  const renderTable = () => {
+  const renderGrid = () => {
     if (!hasSearched) {
       return (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
           <BarChart3 className="w-16 h-16 mb-4 opacity-20" />
           <p className="text-lg font-medium">اختر نوع التقرير واضغط على بحث</p>
-          <p className="text-sm mt-1">سيتم عرض النتائج في جدول بعد البحث</p>
+          <p className="text-sm mt-1">سيتم عرض النتائج في الجدول بعد البحث</p>
         </div>
       );
     }
-    if (isLoading) return <TableSkeleton rows={8} cols={activeTab === "supply-method" ? 8 : 6} />;
-    if (error)     return <ErrorState message={error} onRetry={() => fetchReport(currentPage)} />;
-    if (reportData.length === 0) return <EmptyState />;
+    if (error) return <ErrorState message={error} onRetry={() => fetchReport(currentPage)} />;
+    if (!isLoading && reportData.length === 0) return <EmptyState />;
 
-    const rowCls = (i: number) => i % 2 === 0 ? "bg-card" : "bg-muted/30";
-    const thCls  = "text-right font-bold text-foreground text-sm";
-
-    switch (activeTab) {
-      case "material-type":
-      case "classification":
-        return (
-          <div>
-            <div className="overflow-x-auto max-h-[480px]">
-              <Table>
-                <TableHeader><TableRow className="bg-muted/60">
-                  <TableHead className={thCls}>#</TableHead>
-                  <TableHead className={thCls}>عنوان الكتاب</TableHead>
-                  <TableHead className={thCls}>المؤلف</TableHead>
-                  <TableHead className={thCls}>رقم التصنيف</TableHead>
-                  <TableHead className={thCls}>نوع المادة</TableHead>
-                  <TableHead className={thCls}>حالة الكتاب</TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                  {reportData.map((b, i) => (
-                    <TableRow key={i} className={rowCls(i)}>
-                      <TableCell className="font-mono text-xs text-muted-foreground">{b.serialNo}</TableCell>
-                      <TableCell className="font-medium text-sm">{b.title}</TableCell>
-                      <TableCell className="text-sm">{b.author}</TableCell>
-                      <TableCell className="font-mono text-sm">{b.classification}</TableCell>
-                      <TableCell><MaterialTypeBadge type={b.materialType} /></TableCell>
-                      <TableCell><StatusBadge status={b.status} /></TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            <ReportPagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
-          </div>
-        );
-
-      case "entry-date":
-        return (
-          <div>
-            <div className="overflow-x-auto max-h-[480px]">
-              <Table>
-                <TableHeader><TableRow className="bg-muted/60">
-                  <TableHead className={thCls}>#</TableHead>
-                  <TableHead className={thCls}>عنوان الكتاب</TableHead>
-                  <TableHead className={thCls}>المؤلف</TableHead>
-                  <TableHead className={thCls}>تاريخ الإدخال</TableHead>
-                  <TableHead className={thCls}>رقم التصنيف</TableHead>
-                  <TableHead className={thCls}>نوع المادة</TableHead>
-                  <TableHead className={thCls}>حالة الكتاب</TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                  {reportData.map((b, i) => (
-                    <TableRow key={i} className={rowCls(i)}>
-                      <TableCell className="font-mono text-xs text-muted-foreground">{b.serialNo}</TableCell>
-                      <TableCell className="font-medium text-sm">{b.title}</TableCell>
-                      <TableCell className="text-sm">{b.author}</TableCell>
-                      <TableCell className="text-sm font-mono">{b.entryDate ?? "—"}</TableCell>
-                      <TableCell className="font-mono text-sm">{b.classification}</TableCell>
-                      <TableCell><MaterialTypeBadge type={b.materialType} /></TableCell>
-                      <TableCell><StatusBadge status={b.status} /></TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            <ReportPagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
-          </div>
-        );
-
-      case "supply-method":
-        return (
-          <div>
-            <div className="overflow-x-auto max-h-[480px]">
-              <Table>
-                <TableHeader><TableRow className="bg-muted/60">
-                  <TableHead className={thCls}>#</TableHead>
-                  <TableHead className={thCls}>عنوان الكتاب</TableHead>
-                  <TableHead className={thCls}>المؤلف</TableHead>
-                  <TableHead className={thCls}>رقم التصنيف</TableHead>
-                  <TableHead className={thCls}>اسم المزود</TableHead>
-                  <TableHead className={thCls}>طريقة التزويد</TableHead>
-                  <TableHead className={thCls}>تاريخ الإدخال</TableHead>
-                  <TableHead className={thCls}>حالة الكتاب</TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                  {reportData.map((b, i) => (
-                    <TableRow key={i} className={rowCls(i)}>
-                      <TableCell className="font-mono text-xs text-muted-foreground">{b.serialNo}</TableCell>
-                      <TableCell className="font-medium text-sm">{b.title}</TableCell>
-                      <TableCell className="text-sm">{b.author}</TableCell>
-                      <TableCell className="font-mono text-sm">{b.classification}</TableCell>
-                      <TableCell className="text-sm">{b.supplierName ?? "—"}</TableCell>
-                      <TableCell><SupplyMethodBadge method={b.supplyMethod ?? ""} /></TableCell>
-                      <TableCell className="text-sm font-mono">{b.entryDate ?? "—"}</TableCell>
-                      <TableCell><StatusBadge status={b.status} /></TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            <ReportPagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
-          </div>
-        );
-
-      case "discarded":
-        return (
-          <div>
-            <div className="overflow-x-auto max-h-[480px]">
-              <Table>
-                <TableHeader><TableRow className="bg-muted/60">
-                  <TableHead className={thCls}>#</TableHead>
-                  <TableHead className={thCls}>عنوان الكتاب</TableHead>
-                  <TableHead className={thCls}>المؤلف</TableHead>
-                  <TableHead className={thCls}>رقم التصنيف</TableHead>
-                  <TableHead className={thCls}>سبب الإخراج</TableHead>
-                  <TableHead className={thCls}>تاريخ الإخراج</TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                  {reportData.map((b, i) => (
-                    <TableRow key={i} className={rowCls(i)}>
-                      <TableCell className="font-mono text-xs text-muted-foreground">{b.serialNo}</TableCell>
-                      <TableCell className="font-medium text-sm">{b.title}</TableCell>
-                      <TableCell className="text-sm">{b.author}</TableCell>
-                      <TableCell className="font-mono text-sm">{b.classification}</TableCell>
-                      <TableCell><DiscardReasonBadge reason={b.removeReason ?? ""} /></TableCell>
-                      <TableCell className="text-sm font-mono">{b.discardDate ?? "—"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            <ReportPagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
-          </div>
-        );
-
-      default:
-        return null;
-    }
+    return (
+      <div>
+        <div style={{ height: 420 }} className="w-full rounded-lg overflow-hidden border border-border">
+          <AgGridReact<BookRecord>
+            theme={gridTheme}
+            rowData={isLoading ? [] : reportData}
+            columnDefs={columnDefs}
+            defaultColDef={defaultColDef}
+            enableRtl={true}
+            loading={isLoading}
+            animateRows={true}
+            suppressPaginationPanel={true}
+            suppressCellFocus={true}
+            rowHeight={44}
+            headerHeight={42}
+            getRowStyle={params =>
+              params.node.rowIndex != null && params.node.rowIndex % 2 !== 0
+                ? { background: "hsl(var(--muted) / 0.3)" }
+                : undefined
+            }
+          />
+        </div>
+        <ReportPagination 
+          currentPage={currentPage} 
+          totalPages={totalPages} 
+          onPageChange={handlePageChange} 
+        />
+      </div>
+    );
   };
-
-  // ═══════════════════════════════════════════════
-  // ── Render
-  // ═══════════════════════════════════════════════
 
   return (
     <div dir="rtl" className="space-y-6">
 
-      {/* Header */}
+      {/* ── Header */}
       <div className="flex items-center gap-4">
         <div className="w-12 h-12 rounded-2xl gradient-primary flex items-center justify-center shadow-lg">
           <FileText className="w-6 h-6 text-primary-foreground" />
@@ -1116,26 +816,7 @@ const Reports = () => {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      {kpiLoading ? (
-        <KpiSkeleton />
-      ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {KPI_CARDS.map((kpi, idx) => (
-            <Card key={idx} className="border shadow-sm hover:shadow-md transition-shadow">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className={`flex items-center justify-center w-11 h-11 rounded-xl ${kpi.cls} shrink-0`}>{kpi.icon}</div>
-                <div className="min-w-0">
-                  <p className="text-2xl font-bold text-foreground tabular-nums">{kpi.value}</p>
-                  <p className="text-xs text-muted-foreground truncate">{kpi.label}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Tab Navigation */}
+      {/* ── Tab Navigation */}
       <Card className="shadow-sm">
         <CardContent className="p-4">
           <div className="flex items-center gap-2 mb-4">
@@ -1153,14 +834,14 @@ const Reports = () => {
               >
                 {tab.icon}
                 <span className="hidden sm:inline mr-1.5">{tab.label}</span>
-                <span className="sm:hidden mr-1.5 text-xs">{tab.label.split(" ").slice(0, 2).join(" ")}</span>
+                <span className="sm:hidden mr-1.5 text-xs">{tab.label.split(" ").slice(0,2).join(" ")}</span>
               </Button>
             ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* Filter + Results */}
+      {/* ── Filters + AG Grid */}
       <Card className="shadow-sm">
         <CardHeader className="pb-0">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -1170,8 +851,8 @@ const Reports = () => {
             </CardTitle>
             {hasSearched && !isLoading && !error && totalRecords > 0 && (
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handleExportCSV}>
-                  <Download className="w-4 h-4 ml-1" />تصدير CSV
+                <Button variant="outline" size="sm" onClick={handleExport}>
+                  <Download className="w-4 h-4 ml-1" />تصدير
                 </Button>
                 <Button variant="outline" size="sm" onClick={handlePrint}>
                   <Printer className="w-4 h-4 ml-1" />طباعة
@@ -1191,7 +872,7 @@ const Reports = () => {
 
           <Separator />
 
-          {renderTable()}
+          {renderGrid()}
 
           {hasSearched && !isLoading && !error && totalRecords > 0 && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 text-sm text-muted-foreground border-t border-border">
@@ -1202,7 +883,7 @@ const Reports = () => {
         </CardContent>
       </Card>
 
-      {/* Summary Stats */}
+      {/* ── Summary Stats */}
       {hasSearched && !isLoading && !error && reportData.length > 0 && activeTab !== "discarded" && (
         <Card className="shadow-sm">
           <CardHeader className="pb-0">

@@ -197,12 +197,12 @@ export default function Employees() {
   const canUpdate      = hasPermission("Update-Employee_Admin");
   const canCreate      = hasPermission("Create-Employee_Admin");
   const canChangeGroup = hasPermission("Change-Group_Admin");
+  const canResetPwd    = hasPermission("Reset-Password_Admin");
 
   const iAmSuperAdmin = currentUser?.groupName === "SuperAdmin";
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
-  // هل نجح جلب المجموعات من الـ API؟
   const [groupsAvailable, setGroupsAvailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -214,7 +214,6 @@ export default function Employees() {
   const [credentialOpen, setCredentialOpen] = useState(false);
   const [newCredentials, setNewCredentials] = useState<{ username: string; password: string } | null>(null);
 
-  // ===== state ديالوج تغيير المجموعة المستقل =====
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [groupEmp, setGroupEmp] = useState<Employee | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState(0);
@@ -258,7 +257,6 @@ export default function Employees() {
     if (!form.idnumber || form.idnumber.length < 9) newErrors.idnumber = "9 أرقام على الأقل";
     if (!form.phoneNumber || form.phoneNumber.length < 10) newErrors.phoneNumber = "10 أرقام على الأقل";
     if (!form.birthDate) newErrors.birthDate = "مطلوب";
-    // عند الإضافة فقط نتحقق من المجموعة
     if (!editing) {
       if (!form.groupId) newErrors.groupId = "اختر مجموعة";
     }
@@ -266,16 +264,11 @@ export default function Employees() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // ===== fetchData — كل API بشكل مستقل =====
   const fetchData = async () => {
     try {
       setLoading(true);
-
-      // جلب الموظفين — الأساس، لو فشل يعرض خطأ
       const empData = await employeeApi.getAll();
       setEmployees(Array.isArray(empData) ? empData : []);
-
-      // جلب المجموعات بشكل مستقل — فشل صامت لو ما عنده صلاحية
       try {
         const groupData = await groupApi.lookup();
         if (Array.isArray(groupData) && groupData.length > 0) {
@@ -286,11 +279,9 @@ export default function Employees() {
           setGroupsAvailable(false);
         }
       } catch {
-        // ما عنده صلاحية أو فشل الـ API — نكمل بدون مجموعات
         setGroups([]);
         setGroupsAvailable(false);
       }
-
     } catch {
       toast({ description: "فشل في جلب بيانات الموظفين", variant: "destructive" });
     } finally {
@@ -305,18 +296,13 @@ export default function Employees() {
     setSaving(true);
     try {
       if (editing) {
-        // تعديل البيانات فقط — المجموعة لها ديالوج مستقل
         const result = await employeeApi.update({ ...form, employeeId: editing.employeeId } as Employee);
         showToast(result);
       } else {
         const result = await employeeApi.create(form);
         showToast(result);
-
-        const username =
-            result?.usserName || result?.userName || result?.username ||
-            result?.data?.usserName || result?.data?.userName || result?.data?.username;
+        const username = result?.usserName || result?.userName || result?.username || result?.data?.usserName || result?.data?.userName || result?.data?.username;
         const password = result?.password || result?.data?.password;
-
         if (result?.success !== false && username && password) {
           setNewCredentials({ username, password });
           setCredentialOpen(true);
@@ -332,7 +318,6 @@ export default function Employees() {
     }
   };
 
-  // ===== تغيير المجموعة المستقل =====
   const handleChangeGroup = async () => {
     if (!groupEmp || !selectedGroupId) return;
     setSavingGroup(true);
@@ -371,18 +356,31 @@ export default function Employees() {
   };
 
   const handlePasswordChange = async () => {
-    if (!selectedEmp || !newPassword || !Code) return;
+    if (!selectedEmp || !newPassword || !Code) {
+      toast({ description: "يرجى إدخال كلمة المرور الحالية والجديدة", variant: "destructive" });
+      return;
+    }
+    
     setSaving(true);
     try {
-      const result = await authApi.changePassword({ code: Code, newPassword });
+      const result = await employeeApi.resetPassword({
+        employeeId: Number(selectedEmp.employeeId),
+        userPassword: Code,
+        targetNewPassword: newPassword
+      });
+      
       showToast(result);
       if (result?.success !== false) {
         setPassDialogOpen(false);
         setNewPassword("");
         setCode("");
+        toast({ 
+          title: "تم إعادة تعيين كلمة المرور", 
+          description: `تم تغيير كلمة مرور ${selectedEmp.firstName} ${selectedEmp.familyName} بنجاح` 
+        });
       }
     } catch (err: any) {
-      toast({ description: err.message || "فشل تغيير كلمة المرور", variant: "destructive" });
+      toast({ description: err.message || "فشل إعادة تعيين كلمة المرور", variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -459,9 +457,6 @@ export default function Employees() {
               />
             </div>
 
-            {/* زر إضافة موظف:
-                - يظهر لو عنده صلاحية الإضافة
-                - لو ما عنده صلاحية عرض المجموعات (groupsAvailable=false) → toast تحذيري بدل ما يفتح الديالوج */}
             {canCreate && (
                 <Button
                     onClick={() => {
@@ -524,9 +519,6 @@ export default function Employees() {
                             <Button variant="ghost" size="icon" onClick={() => { setSelectedEmp(emp); setProfileOpen(true); }} className="text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl w-9 h-9">
                               <Eye size={17} />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => { setSelectedEmp(emp); setPassDialogOpen(true); }} className="text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl w-9 h-9">
-                              <KeyRound size={17} />
-                            </Button>
                           </div>
                         </div>
 
@@ -558,10 +550,7 @@ export default function Employees() {
                             {!canToggle ? "مقيّد" : emp.userStatus === "Active" ? "تعطيل" : "تفعيل"}
                           </Button>
 
-                          {/* زر تغيير المجموعة:
-                              - عنده صلاحية + المجموعات متاحة → يفتح الديالوج
-                              - عنده صلاحية + المجموعات مش متاحة → toast تحذيري
-                              - ما عنده صلاحية → ما يظهر أصلاً */}
+                          {/* زر تغيير المجموعة */}
                           {canChangeGroup && (
                               <Button
                                   onClick={() => {
@@ -588,7 +577,7 @@ export default function Employees() {
                               </Button>
                           )}
 
-                          {/* زر التعديل — يظهر فقط لو عنده صلاحية تعديل البيانات */}
+                          {/* زر التعديل */}
                           {canUpdate && (
                               <Button
                                   onClick={() => {
@@ -617,13 +606,26 @@ export default function Employees() {
                               </Button>
                           )}
 
-                          {/* لو ما عنده لا تعديل ولا تغيير جروب → زر مقفل */}
-                          {!canUpdate && !canChangeGroup && (
+                          {/* زر إعادة تعيين كلمة المرور - حسب صلاحية Reset-Password_Admin */}
+                          {canResetPwd && (
+                            <Button
+                                onClick={() => {
+                                  setSelectedEmp(emp);
+                                  setPassDialogOpen(true);
+                                }}
+                                className="h-11 w-11 rounded-2xl bg-blue-100 hover:bg-blue-200 text-blue-600"
+                                title="إعادة تعيين كلمة المرور"
+                            >
+                              <KeyRound size={16} />
+                            </Button>
+                          )}
+
+                          {/* لو ما عنده صلاحيات → زر مقفل */}
+                          {!canUpdate && !canChangeGroup && !canResetPwd && (
                               <Button disabled className="h-11 w-11 rounded-2xl bg-slate-100 text-slate-400">
                                 <Lock size={15} />
                               </Button>
                           )}
-
                         </div>
                       </motion.div>
                   ))}
@@ -642,8 +644,6 @@ export default function Employees() {
             </DialogHeader>
 
             <div className="space-y-8 mt-8 text-right" dir="rtl">
-
-              {/* الصف الأول: الحقول العربية */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
                   { label: "الاسم الأول", key: "firstName" },
@@ -664,7 +664,6 @@ export default function Employees() {
                 ))}
               </div>
 
-              {/* الصف الثاني: الحقول الإنجليزية */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
                 {[
                   { label: "Family Name (EN)", key: "familyNameEn" },
@@ -683,7 +682,6 @@ export default function Employees() {
                 ))}
               </div>
 
-              {/* الصف الثالث: الحقول الرقمية */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="space-y-2">
                   <Label className="font-black text-slate-800 text-sm">رقم الهوية <span className="text-rose-500">*</span></Label>
@@ -732,7 +730,6 @@ export default function Employees() {
                 </div>
               </div>
 
-              {/* حقل المجموعة — يظهر فقط عند الإضافة الجديدة */}
               {!editing && (
                   <div className="col-span-full space-y-3 bg-indigo-50 p-6 rounded-3xl border-2 border-dashed border-indigo-200 mt-4">
                     <Label className="font-black text-indigo-700 block mb-2">المجموعة الوظيفية <span className="text-rose-500">*</span></Label>
@@ -760,7 +757,7 @@ export default function Employees() {
           </DialogContent>
         </Dialog>
 
-        {/* ===== ديالوج تغيير المجموعة المستقل ===== */}
+        {/* ===== ديالوج تغيير المجموعة ===== */}
         <Dialog open={groupDialogOpen} onOpenChange={setGroupDialogOpen}>
           <DialogContent className="rounded-[2.5rem] p-10 text-right max-w-md">
             <DialogHeader>
@@ -779,10 +776,7 @@ export default function Employees() {
               </div>
               <div className="space-y-2">
                 <Label className="font-black text-slate-700">اختر المجموعة الجديدة</Label>
-                <Select
-                    value={String(selectedGroupId)}
-                    onValueChange={v => setSelectedGroupId(Number(v))}
-                >
+                <Select value={String(selectedGroupId)} onValueChange={v => setSelectedGroupId(Number(v))}>
                   <SelectTrigger className="h-14 rounded-2xl border-2 border-slate-100 font-bold text-slate-700">
                     <SelectValue placeholder="اختر المجموعة" />
                   </SelectTrigger>
@@ -798,61 +792,53 @@ export default function Employees() {
             </div>
             <DialogFooter className="gap-3">
               <Button variant="ghost" onClick={() => setGroupDialogOpen(false)} className="h-12 rounded-2xl font-bold flex-1">إلغاء</Button>
-              <Button
-                  onClick={handleChangeGroup}
-                  disabled={savingGroup || !selectedGroupId || selectedGroupId === groupEmp?.groupId}
-                  className="h-12 rounded-2xl bg-violet-600 hover:bg-violet-700 font-black flex-[2] shadow-lg shadow-violet-100 text-white"
-              >
+              <Button onClick={handleChangeGroup} disabled={savingGroup || !selectedGroupId || selectedGroupId === groupEmp?.groupId} className="h-12 rounded-2xl bg-violet-600 hover:bg-violet-700 font-black flex-[2] shadow-lg shadow-violet-100 text-white">
                 {savingGroup ? <Loader2 className="animate-spin" /> : "تأكيد التغيير"}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* ===== ديالوج تغيير كلمة المرور ===== */}
+        {/* ===== ديالوج إعادة تعيين كلمة المرور ===== */}
         <Dialog open={passDialogOpen} onOpenChange={setPassDialogOpen}>
           <DialogContent className="rounded-[2.5rem] p-10 text-right max-w-md">
             <DialogHeader>
               <DialogTitle className="font-black text-2xl text-slate-800 flex items-center gap-2 justify-end">
-                تغيير كلمة المرور <KeyRound className="text-indigo-600" />
+                إعادة تعيين كلمة المرور <KeyRound className="text-indigo-600" />
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-5 py-4" dir="rtl">
               <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 flex items-start gap-3">
                 <ShieldAlert className="text-amber-600 shrink-0 mt-0.5" size={18} />
                 <p className="text-sm text-amber-800 font-bold leading-relaxed">
-                  تغيير كلمة مرور: <span className="text-indigo-600">{selectedEmp?.firstName} {selectedEmp?.familyName}</span>
+                  إعادة تعيين كلمة مرور: <span className="text-indigo-600">{selectedEmp?.firstName} {selectedEmp?.familyName}</span>
                 </p>
               </div>
               <div className="space-y-2">
-                <Label className="font-black text-slate-700">كلمة المرور الحالية</Label>
+                <Label className="font-black text-slate-700">كلمة المرور الحالية (للمسؤول)</Label>
                 <Input
                     type="password"
                     value={Code}
                     onChange={e => setCode(e.target.value)}
-                    placeholder="أدخل كلمة المرور الحالية"
+                    placeholder="أدخل كلمة المرور الحالية الخاصة بك"
                     className="h-12 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 transition-all"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="font-black text-slate-700">كلمة المرور الجديدة</Label>
+                <Label className="font-black text-slate-700">كلمة المرور الجديدة (للموظف)</Label>
                 <Input
                     type="password"
                     value={newPassword}
                     onChange={e => setNewPassword(e.target.value)}
-                    placeholder="أدخل كلمة مرور قوية"
+                    placeholder="أدخل كلمة مرور قوية للموظف"
                     className="h-12 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 transition-all"
                 />
               </div>
             </div>
             <DialogFooter className="gap-3">
               <Button variant="ghost" onClick={() => setPassDialogOpen(false)} className="h-12 rounded-2xl font-bold flex-1">إلغاء</Button>
-              <Button
-                  onClick={handlePasswordChange}
-                  disabled={saving || !newPassword || !Code}
-                  className="h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black flex-[2] shadow-lg shadow-indigo-100"
-              >
-                {saving ? <Loader2 className="animate-spin" /> : "تحديث كلمة المرور"}
+              <Button onClick={handlePasswordChange} disabled={saving || !newPassword || !Code} className="h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black flex-[2] shadow-lg shadow-indigo-100">
+                {saving ? <Loader2 className="animate-spin" /> : "إعادة تعيين كلمة المرور"}
               </Button>
             </DialogFooter>
           </DialogContent>

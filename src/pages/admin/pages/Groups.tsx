@@ -121,8 +121,7 @@ export default function Groups() {
                 setForm({ groupName: "", groupLevel: "0", permissionIds: [] });
                 setDialogOpen(true);
               }}
-className="w-full sm:w-auto rounded-2xl bg-indigo-600 font-black h-12 px-6 shadow-lg shadow-indigo-100"
->  
+className="w-full sm:w-auto rounded-2xl bg-indigo-600 font-black h-12 px-6 shadow-lg shadow-indigo-100">  
             <Plus className="ml-2 w-5 h-5" /> إضافة مجموعة
           </Button>
         </div>
