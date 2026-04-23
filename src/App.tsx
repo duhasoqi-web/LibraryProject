@@ -57,11 +57,7 @@ import NotFound from "./pages/public/pages/NotFound";
 
 const queryClient = new QueryClient();
 
-// ══════════════════════════════════════════════════════
-// Guards (أنظمة الحماية)
-// ══════════════════════════════════════════════════════
 
-/** 1. حماية صفحة المشترك (Member فقط) */
 function MemberProtectedRoute({ children }: { children: React.ReactNode }) {
     const { user, isAuthenticated, isLoading } = useAuth();
     if (isLoading) return <div className="h-screen w-full flex items-center justify-center">تحميل...</div>;
@@ -82,11 +78,17 @@ function PermissionRoute({ permission, children }: { permission: string; childre
     return <>{children}</>;
 }
 
-/** 3. حماية لوحة الإدارة الكبرى (Employee فقط) */
 function EmployeeRoute() {
     const { user, isAuthenticated, isLoading } = useAuth();
 
     useEffect(() => {
+        const token = localStorage.getItem("token");
+        
+        if (!token && !isLoading && isAuthenticated) {
+            localStorage.clear();
+            window.location.reload(); 
+        }
+
         if (isAuthenticated && (user?.role === "Employee")) {
             document.body.classList.add("admin-theme");
             document.body.classList.remove("home-theme");
@@ -94,15 +96,12 @@ function EmployeeRoute() {
             document.body.classList.add("home-theme");
             document.body.classList.remove("admin-theme");
         }
-        return () => {
-            document.body.classList.remove("admin-theme");
-            document.body.classList.remove("home-theme");
-        };
-    }, [isAuthenticated, user?.role]);
+    }, [isAuthenticated, user?.role, isLoading]);
 
     if (isLoading) return <div className="h-screen w-full flex items-center justify-center">تحميل...</div>;
 
-    if (!isAuthenticated || (user?.role !== "Employee")) {
+    // إذا ما في توكن أو مش موظف، اطرده فوراً لصفحة اللوجن
+    if (!isAuthenticated || (user?.role !== "Employee") || !localStorage.getItem("token")) {
         return <Navigate to="/login" replace />;
     }
 
@@ -112,10 +111,6 @@ function EmployeeRoute() {
         </AdminLayout4>
     );
 }
-
-// ══════════════════════════════════════════════════════
-// Routes (المسارات)
-// ══════════════════════════════════════════════════════
 const AppRoutes = () => (
     <Routes>
         {/* ─── صفحات الضيوف ─── */}

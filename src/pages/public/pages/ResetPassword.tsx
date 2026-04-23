@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Lock, CheckCircle, AlertCircle, Eye, EyeOff, ArrowRight, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion"; // الأنميشن هان
 import axios from "axios";
-import logo from "@/assets/main-logo.png";
+import logo from "@/assets/main-logo.webp";
 import HomeLayout from "@/pages/public/components/HomeLayout.tsx";
 
 

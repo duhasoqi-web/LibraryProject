@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Lock, User, AlertCircle, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext"; // تأكد من المسار الصحيح للـ Context
-import logo from "@/assets/main-logo.png";
+import logo from "@/assets/main-logo.webp";
 import HomeLayout from "@/pages/public/components/HomeLayout.tsx";
 
 const Login = () => {

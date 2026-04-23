@@ -7,7 +7,7 @@ import { Label } from "@/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/ui/tabs";
 import { ChevronRight, Loader2, Plus, Trash2, UserPlus, ShieldCheck, ArrowRight, BookOpen, CheckCircle2 } from "lucide-react";
-import logo from "@/assets/upscalemedia.png";
+import logo from "@/assets/upscalemedia-transformed.webp";
 import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
 import HomeLayout from "@/pages/public/components/HomeLayout.tsx";
@@ -306,9 +306,9 @@ const Signup = () => {
                             className="space-y-10"
                         >
                           {/* القسم 1: الاسم */}
-                          <div>
+                          <div dir="rtl" className="w-full">
                             <SectionTitle>الاسم الرباعي</SectionTitle>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3"> 
+                            <div  className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <Field label="العائلة" value={formData.memberInfo.familyName} onChange={(v: any) => { handleInputChange('memberInfo', 'familyName', v); setErrors(e => ({...e, m_familyName: ""})); }} required error={errors["m_familyName"]} />
                               <Field label="اسم الجد" value={formData.memberInfo.grandfatherName} onChange={(v: any) => { handleInputChange('memberInfo', 'grandfatherName', v); setErrors(e => ({...e, m_grandfatherName: ""})); }} required error={errors["m_grandfatherName"]} />
                               <Field label="اسم الأب" value={formData.memberInfo.fatherName} onChange={(v: any) => { handleInputChange('memberInfo', 'fatherName', v); setErrors(e => ({...e, m_fatherName: ""})); }} required error={errors["m_fatherName"]} />
@@ -321,9 +321,9 @@ const Signup = () => {
                           </div>
 
                           {/* القسم 2: المعلومات الشخصية */}
-                          <div>
+                          <div dir="rtl" className="w-full">
                             <SectionTitle>المعلومات الشخصية</SectionTitle>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div dir="rtl" className="grid grid-cols-1 md:grid-cols-3 gap-3">
                               <div className="flex flex-col gap-1.5 group">
                                 <Label className={`text-[10px] font-black uppercase tracking-widest transition-colors duration-200 ${errors["m_gender"] ? "text-rose-500" : "text-slate-400 group-focus-within:text-secondary"}`}>
                                   الجنس <span className="text-rose-400">*</span>
@@ -357,9 +357,9 @@ const Signup = () => {
                           </div>
 
                           {/* القسم 3: العنوان والعمل */}
-                          <div>
+                        <div dir="rtl" className="w-full">
                             <SectionTitle>العنوان والعمل</SectionTitle>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                            <div dir="rtl" className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                               <div className="flex flex-col gap-1.5 group">
                                 <Label className={`text-[10px] font-black uppercase tracking-widest transition-colors duration-200 ${errors["m_cityId"] ? "text-rose-500" : "text-slate-400 group-focus-within:text-secondary"}`}>
                                   المدينة <span className="text-rose-400">*</span>
@@ -376,7 +376,7 @@ const Signup = () => {
                               </div>
                               <Field label="الوظيفة" value={formData.memberInfo.job} onChange={(v: any) => { handleInputChange('memberInfo', 'job', v); setErrors(e => ({...e, m_job: ""})); }} required error={errors["m_job"]} />
                             </div>
-                            <div className="grid grid-cols-3 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <div dir="rtl" className="grid grid-cols-3 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
                               <Field label="القرية" value={formData.memberInfo.village} onChange={(v: any) => handleInputChange('memberInfo', 'village', v)} />
                               <Field label="الحي" value={formData.memberInfo.neighborhood} onChange={(v: any) => handleInputChange('memberInfo', 'neighborhood', v)} />
                               <Field label="الشارع" value={formData.memberInfo.street} onChange={(v: any) => handleInputChange('memberInfo', 'street', v)} />
@@ -384,9 +384,9 @@ const Signup = () => {
                           </div>
 
                           {/* القسم 4: الهواتف */}
-                          <div>
+                         <div dir="rtl" className="w-full">
                             <SectionTitle>أرقام التواصل</SectionTitle>
-                            <div className="space-y-2 max-w-xs">
+                            <div  className="space-y-2 max-w-xs">
                               {formData.memberInfo.phoneNumbers.map((phone, idx) => (
                                   <div key={idx} className="flex flex-col gap-1">
                                     <div className="flex gap-2 items-center">
@@ -416,7 +416,7 @@ const Signup = () => {
                           </div>
 
                           {/* Next */}
-                          <div className="flex justify-end pt-2 border-t border-slate-100">
+                          <div className="flex justify-end pt-2 border-t border-slate-100 w-full" dir="rtl" >
                             <Button onClick={() => setActiveTab("guarantor")} className="bg-secondary text-white font-black h-11 px-8 rounded-xl shadow-lg shadow-secondary/20 hover:shadow-secondary/30 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 gap-2">
                               بيانات الكفيل
                               <ChevronRight size={17} className="rotate-180" />
@@ -434,9 +434,9 @@ const Signup = () => {
                             className="space-y-10"
                         >
                           {/* القسم 1: اسم الكفيل */}
-                          <div>
+                        <div dir="rtl" className="w-full">
                             <SectionTitle>الاسم الرباعي للكفيل</SectionTitle>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div  className="grid grid-cols-2 md:grid-cols-4 gap-3">
                               <Field label="العائلة" value={formData.guarantorInfo.familyName} onChange={(v: any) => { handleInputChange('guarantorInfo', 'familyName', v); setErrors(e => ({...e, g_familyName: ""})); }} required error={errors["g_familyName"]} />
                               <Field label="اسم الجد" value={formData.guarantorInfo.grandfatherName} onChange={(v: any) => { handleInputChange('guarantorInfo', 'grandfatherName', v); setErrors(e => ({...e, g_grandfatherName: ""})); }} required error={errors["g_grandfatherName"]} />
                               <Field label="اسم الأب" value={formData.guarantorInfo.fatherName} onChange={(v: any) => { handleInputChange('guarantorInfo', 'fatherName', v); setErrors(e => ({...e, g_fatherName: ""})); }} required error={errors["g_fatherName"]} />
@@ -445,18 +445,18 @@ const Signup = () => {
                           </div>
 
                           {/* القسم 2: معلومات الكفيل */}
-                          <div>
+                          <div dir="rtl" className="w-full">
                             <SectionTitle>المعلومات الشخصية للكفيل</SectionTitle>
-                            <div className="grid md:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <div dir="rtl"  className="grid md:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
                               <Field label="رقم الهوية" value={formData.guarantorInfo.idnumber} onChange={(v: any) => { handleInputChange('guarantorInfo', 'idnumber', v); setErrors(e => ({...e, g_idnumber: ""})); }} required error={errors["g_idnumber"]} />
                               <Field label="الوظيفة" value={formData.guarantorInfo.job} onChange={(v: any) => { handleInputChange('guarantorInfo', 'job', v); setErrors(e => ({...e, g_job: ""})); }} required error={errors["g_job"]} />
                             </div>
                           </div>
 
                           {/* القسم 3: عنوان الكفيل */}
-                          <div>
+                         <div dir="rtl" className="w-full">
                             <SectionTitle>عنوان سكن الكفيل</SectionTitle>
-                            <div className="grid grid-cols-3 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <div  dir="rtl" className="grid grid-cols-3 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
                               <Field label="القرية" value={formData.guarantorInfo.village} onChange={(v: any) => handleInputChange('guarantorInfo', 'village', v)} />
                               <Field label="الحي" value={formData.guarantorInfo.neighborhood} onChange={(v: any) => handleInputChange('guarantorInfo', 'neighborhood', v)} />
                               <Field label="الشارع" value={formData.guarantorInfo.street} onChange={(v: any) => handleInputChange('guarantorInfo', 'street', v)} />
@@ -464,7 +464,7 @@ const Signup = () => {
                           </div>
 
                           {/* القسم 4: هواتف الكفيل */}
-                          <div>
+                        <div dir="rtl" className="w-full">
                             <SectionTitle>أرقام تواصل الكفيل</SectionTitle>
                             <div className="space-y-2 max-w-xs">
                               {formData.guarantorInfo.phoneNumbers.map((phone, idx) => (

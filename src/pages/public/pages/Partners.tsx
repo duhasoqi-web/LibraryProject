@@ -3,7 +3,7 @@ import Footer from "@/pages/public/components/Footer";
 import HeroSection from "@/pages/public/components/HeroSection";
 import SectionTitle from "@/pages/public/components/SectionTitle";
 import { Card, CardContent } from "@/ui/card";
-import heroImage from "@/assets/hero-library.jpg";
+import heroImage from "@/assets/hero-library.webp";
 import HomeLayout from "@/pages/public/components/HomeLayout.tsx";
 
 

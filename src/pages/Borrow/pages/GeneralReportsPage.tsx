@@ -28,42 +28,61 @@ export default function GeneralReportsPage() {
     }
   };
 
-  const handleExportExcel = async () => {
-  const currentData = tab === "loans" ? loanData : tab === "subscribers" ? subData : lateData;
+ const handleExportExcel = async () => {
+    const currentData = tab === "loans" ? loanData : tab === "subscribers" ? subData : lateData;
 
-  if (!currentData || currentData.length === 0) {
-    toast.error("لا توجد بيانات لتصديرها حالياً");
-    return;
-  }
+    if (!currentData || currentData.length === 0) {
+      toast.error("لا توجد بيانات لتصديرها حالياً");
+      return;
+    }
 
-  setExportLoading(true);
-  const token = localStorage.getItem("token");
-  let exportType = tab === "loans" ? "borrows" : tab === "subscribers" ? "Members" : "Late";
+    setExportLoading(true);
+    const token = localStorage.getItem("token");
+    let exportType = tab === "loans" ? "borrows" : tab === "subscribers" ? "Members" : "Late";
 
-  try {
-    const response = await fetch(`/api/GeneralReportExport/export?Type=${exportType}`, {
-      method: 'GET',
-      headers: { "Authorization": `Bearer ${token}` },
-    });
-    
-    if (!response.ok) throw new Error();
-    
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `تقرير_${exportType}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    a.remove();
-    toast.success("تم تصدير ملف Excel بنجاح");
-  } catch (error) {
-    toast.error("حدث خطأ أثناء تصدير الملف");
-  } finally {
-    setExportLoading(false);
-  }
-};
+    try {
+      const response = await fetch(`/api/GeneralReportExport/export?Type=${exportType}`, {
+        method: 'GET',
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+      // --- الجزء المستبدل لجلب الاسم من الباك إند بدعم العربي ---
+      const disposition = response.headers.get("Content-Disposition");
+      let fileName = `تقرير_${exportType}.xlsx`; // اسم احتياطي في حال فشل الجلب
+
+      if (disposition) {
+        // البحث عن الاسم المشفر UTF-8 (يدعم العربي)
+        const utf8Match = disposition.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
+        if (utf8Match?.[1]) {
+          fileName = decodeURIComponent(utf8Match[1]);
+        } else {
+          const normalMatch = disposition.match(/filename\s*=\s*"?([^";]+)"?/i);
+          if (normalMatch?.[1]) {
+            fileName = normalMatch[1];
+          }
+        }
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      a.download = fileName; 
+      
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+      toast.success("تم تصدير ملف Excel بنجاح");
+    } catch (error) {
+      toast.error("حدث خطأ أثناء تصدير الملف");
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   const fetchAllForReport = useCallback(async () => {
     const token = localStorage.getItem("token");
@@ -126,7 +145,7 @@ export default function GeneralReportsPage() {
   const tabs = [
     { id: "loans" as Tab, label: "تقارير الإعارة", icon: <BookOpen className="w-5 h-5" /> },
     { id: "subscribers" as Tab, label: "تقارير المشتركين", icon: <Users className="w-5 h-5" /> },
-    { id: "late" as Tab, label: "المتأخرين", icon: <Clock className="w-5 h-5" /> },
+    { id: "late" as Tab, label: "تقارير المتأخرين", icon: <Clock className="w-5 h-5" /> },
   ];
 
   return (

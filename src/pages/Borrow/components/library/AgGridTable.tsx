@@ -3,8 +3,8 @@ import { AgGridReact } from "ag-grid-react";
 import { AllCommunityModule, ModuleRegistry, themeQuartz } from "ag-grid-community";
 import { Download, Printer } from "lucide-react";
 import * as XLSX from "xlsx";
-import libraryLogo from "@/assets/upscalemedia.png";
-import municipalityLogo from "@/assets/slogan.jpeg"; 
+import libraryLogo from "@/assets/upscalemedia-transformed.webp";
+import municipalityLogo from "@/assets/slogan.webp"; 
 import { toast } from "sonner";
 
 ModuleRegistry.registerModules([AllCommunityModule]);

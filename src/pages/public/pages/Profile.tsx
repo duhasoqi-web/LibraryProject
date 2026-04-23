@@ -10,6 +10,13 @@ const animationStyles = `
     from { opacity: 0; }
     to   { opacity: 1; }
   }
+    .ag-theme-quartz {
+    direction: rtl;
+}
+    .rtl-flex {
+    display: flex;
+    flex-direction: row-reverse;
+}
   @keyframes slideRight {
     from { opacity: 0; transform: translateX(-24px); }
     to   { opacity: 1; transform: translateX(0); }
@@ -43,7 +50,7 @@ const animationStyles = `
   .delay-500 { animation-delay: 0.50s; }
   .delay-600 { animation-delay: 0.60s; }
   .shimmer-row {
-    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background: linear-gradient(90deg, #fef2f2 25%, #fecaca 50%, #fef2f2 75%);
     background-size: 400px 100%;
     animation: shimmer 1.4s infinite linear;
     border-radius: 0.5rem;
@@ -80,27 +87,24 @@ import { ModuleRegistry, AllCommunityModule, themeQuartz } from "ag-grid-communi
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-// ─── AG Grid Theme ────────────────────────────────────────────────────────────
-
 const gridTheme = themeQuartz.withParams({
     fontFamily: "inherit",
     fontSize: 14,
     headerFontSize: 13,
     headerFontWeight: 700,
-    headerTextColor: "#64748b",
-    headerBackgroundColor: "#f8fafc",
+    headerTextColor: "#991b1b",
+    headerBackgroundColor: "#fef2f2",
     backgroundColor: "#ffffff",
     foregroundColor: "#1e293b",
-    rowHoverColor: "#f1f5f9",
-    borderColor: "#e2e8f0",
-    oddRowBackgroundColor: "#fafbfc",
+    rowHoverColor: "#fef2f2",
+    borderColor: "#be2525",
+    oddRowBackgroundColor: "#fff7f7",
     cellHorizontalPaddingScale: 1.2,
     wrapperBorderRadius: "1.25rem",
     rowBorder: true,
     columnBorder: false,
 });
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PaginatedResponse<T> {
     data: T[];
@@ -159,11 +163,11 @@ const defaultColDef: ColDef = {
     filter: true,
     resizable: false,
     suppressMovable: true,
-    // إضافة display flex يضمن التوسيط الرأسي والأفقي بدقة
     cellStyle: {
         display: "flex",
-        alignItems: "center", // يوسط النص عمودياً
-        justifyContent: "flex-start", // بما أنك تستخدم RTL فالبداية هي اليمين
+        alignItems: "center",
+        justifyContent: "flex-start",
+        textAlign: "right",
     },
 };
 const baseGridOptions: GridOptions = {
@@ -194,15 +198,15 @@ const Pagination = ({
     const to = Math.min(currentPage * pageSize, totalCount);
 
     return (
-        <div className="flex items-center justify-between px-1 pt-4 border-t border-slate-100 anim-fade-in">
-            <span className="text-xs text-slate-400 font-bold">
+        <div className="flex items-center justify-between px-1 pt-4 border-t border-red-100 anim-fade-in">
+            <span className="text-xs text-red-400 font-bold">
                 عرض {from}–{to} من {totalCount}
             </span>
             <div className="flex items-center gap-1.5" dir="ltr">
                 <button
                     onClick={() => onPageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 text-xs font-bold hover:bg-secondary hover:text-white hover:border-secondary hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
+                    className="px-3 py-1.5 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-600 hover:text-white hover:border-red-600 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
                 >
                     ‹
                 </button>
@@ -212,8 +216,8 @@ const Pagination = ({
                         onClick={() => onPageChange(p)}
                         className={`w-8 h-8 rounded-lg text-xs font-black transition-all duration-200 hover:scale-105 active:scale-95 ${
                             p === currentPage
-                                ? "bg-secondary text-white shadow-md shadow-secondary/25"
-                                : "border border-slate-200 text-slate-500 hover:bg-secondary/10 hover:border-secondary/30"
+                                ? "bg-red-600 text-white shadow-md shadow-red-600/25"
+                                : "border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300"
                         }`}
                     >
                         {p}
@@ -222,7 +226,7 @@ const Pagination = ({
                 <button
                     onClick={() => onPageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 text-xs font-bold hover:bg-secondary hover:text-white hover:border-secondary hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
+                    className="px-3 py-1.5 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-600 hover:text-white hover:border-red-600 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
                 >
                     ›
                 </button>
@@ -231,13 +235,12 @@ const Pagination = ({
     );
 };
 
-// ─── Table Card ───────────────────────────────────────────────────────────────
 
 const TableCard = ({
                        icon,
                        title,
                        count,
-                       accentClass = "bg-secondary/10 text-secondary",
+                       accentClass = "bg-red-50 text-red-600",
                        loading,
                        children,
                    }: {
@@ -248,22 +251,22 @@ const TableCard = ({
     loading: boolean;
     children: React.ReactNode;
 }) => (
-    <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden anim-fade-up">
-        <div className="px-8 pt-7 pb-5 flex items-center gap-3 border-b border-slate-100">
+    <div className="bg-white rounded-[2.5rem] shadow-sm border border-red-100 overflow-hidden anim-fade-up">
+        <div className="px-8 pt-7 pb-5 flex items-center gap-3 border-b border-red-100">
             <div className={`w-10 h-10 ${accentClass} rounded-xl flex items-center justify-center`}>
                 {icon}
             </div>
             <div>
                 <h2 className="text-lg font-black text-slate-800">{title}</h2>
                 {count !== undefined && (
-                    <p className="text-xs text-slate-400 font-semibold mt-0.5">الإجمالي: {count}</p>
+                    <p className="text-xs text-red-400 font-semibold mt-0.5">الإجمالي: {count}</p>
                 )}
             </div>
         </div>
         <div className="p-6">
             {loading ? (
                 <div className="flex items-center justify-center py-16">
-                    <Loader2 className="animate-spin text-secondary" size={32} />
+                    <Loader2 className="animate-spin text-red-600" size={32} />
                 </div>
             ) : children}
         </div>
@@ -272,12 +275,11 @@ const TableCard = ({
 
 const EmptyState = () => (
     <div className="flex flex-col items-center justify-center py-14 gap-3">
-        <AlertCircle size={38} strokeWidth={1.5} className="text-slate-300" />
-        <p className="font-bold text-sm text-slate-400">لا توجد بيانات للعرض</p>
+        <AlertCircle size={38} strokeWidth={1.5} className="text-red-300" />
+        <p className="font-bold text-sm text-red-400">لا توجد بيانات للعرض</p>
     </div>
 );
 
-// ─── Current Borrows ──────────────────────────────────────────────────────────
 
 const CurrentBorrowsTab = () => {
     const [page, setPage] = useState(1);
@@ -313,13 +315,13 @@ const CurrentBorrowsTab = () => {
         {
             headerName: "الرقم التسلسلي",
             field: "serialNumber",
-            cellStyle: { fontFamily: "monospace", color: "var(--color-secondary, #0d6efd)", fontWeight: "700", textAlign: "right" },
+            cellStyle: { fontFamily: "monospace", color: "#1e293b", fontWeight: "700", textAlign: "right" },
         },
         {
             headerName: "تاريخ الاستعارة",
             field: "startDate",
             valueFormatter: (p) => p.value ?? "—",
-            cellStyle: { color: "#64748b", textAlign: "right" },
+            cellStyle: { color: "#1e293b", textAlign: "right" },
         },
         {
             headerName: "تاريخ الإرجاع المتوقع",
@@ -329,7 +331,7 @@ const CurrentBorrowsTab = () => {
                 if (!p.value) return <span className="text-slate-400">—</span>;
                 const overdue = new Date(p.value) < new Date();
                 return (
-                    <span className={`px-3 py-1 rounded-full text-xs font-black ${overdue ? "bg-rose-100 text-rose-600" : "bg-amber-50 text-amber-600"}`}>
+                    <span className={`px-3 py-1 rounded-full text-xs font-black ${overdue ? "bg-red-100 text-red-600" : "bg-red-50 text-red-500"}`}>
                         {p.value}
                     </span>
                 );
@@ -365,7 +367,6 @@ const CurrentBorrowsTab = () => {
     );
 };
 
-// ─── Borrow History ───────────────────────────────────────────────────────────
 
 const BorrowHistoryTab = () => {
     const [page, setPage] = useState(1);
@@ -401,25 +402,25 @@ const BorrowHistoryTab = () => {
         {
             headerName: "الرقم التسلسلي",
             field: "serialNumber",
-            cellStyle: { fontFamily: "monospace", color: "var(--color-secondary, #0d6efd)", fontWeight: "700", textAlign: "right" },
+            cellStyle: { fontFamily: "monospace", color: "#dc2626", fontWeight: "700", textAlign: "right" },
         },
         {
             headerName: "تاريخ الاستعارة",
             field: "startDate",
             valueFormatter: (p) => p.value ?? "—",
-            cellStyle: { color: "#64748b", textAlign: "right" },
+            cellStyle: { color: "#1e293b", textAlign: "right" },
         },
         {
             headerName: "تاريخ الإرجاع",
             field: "endDate",
             valueFormatter: (p) => p.value ?? "—",
-            cellStyle: { color: "#64748b", textAlign: "right" },
+            cellStyle: { color: "#1e293b", textAlign: "right" },
         },
         {
             headerName: "الموظف",
             field: "employeeName",
             valueFormatter: (p) => p.value ?? "—",
-            cellStyle: { color: "#94a3b8", textAlign: "right" },
+            cellStyle: { color: "#1e293b", textAlign: "right" },
         },
     ], []);
 
@@ -481,18 +482,18 @@ const SubscriptionsTab = () => {
         {
             headerName: "تاريخ البداية",
             field: "subscriptionStartDate",
-            cellStyle: { color: "#475569", fontWeight: "600", textAlign: "right" },
+            cellStyle: { color: "#1e293b", fontWeight: "600", textAlign: "right" },
         },
         {
             headerName: "تاريخ الانتهاء",
             field: "subscriptionEndDate",
-            cellStyle: { color: "#475569", fontWeight: "600", textAlign: "right" },
+            cellStyle: { color: "#1e293b", fontWeight: "600", textAlign: "right" },
         },
         {
             headerName: "المدة",
             field: "subscriptionDurationDays",
             cellRenderer: (p: any) => (
-                <span className="bg-secondary/10 text-secondary px-3 py-1 rounded-full text-xs font-black">
+                <span className="bg-red-50 text-red-600 px-3 py-1 rounded-full text-xs font-black">
                     {p.value} يوم
                 </span>
             ),
@@ -501,25 +502,25 @@ const SubscriptionsTab = () => {
             headerName: "المبلغ",
             field: "amount",
             cellRenderer: (p: any) => (
-                <span className="font-black text-slate-800">{p.value} ₪</span>
+                <span className="font-black text-red-700">{p.value} ₪</span>
             ),
         },
         {
             headerName: "طريقة الدفع",
             field: "paymentMethod",
             valueFormatter: (p) => p.value ?? "—",
-            cellStyle: { color: "#94a3b8", textAlign: "right" },
+            cellStyle: { color: "#1e293b", textAlign: "right" },
         },
         {
             headerName: "الموظف",
             field: "employeeName",
             valueFormatter: (p) => p.value ?? "—",
-            cellStyle: { color: "#94a3b8", textAlign: "right" },
+            cellStyle: { color: "#1e293b", textAlign: "right" },
         },
     ], []);
 
     return (
-        <TableCard icon={<RefreshCw size={20} />} title="سجل الاشتراكات" count={result?.totalCount} loading={loading}>
+        <TableCard icon={<RefreshCw size={20}  />} title="سجل الاشتراكات" count={result?.totalCount} loading={loading}>
             {result?.data.length === 0 ? <EmptyState /> : (
                 <>
                     <div className="w-full" dir="rtl">
@@ -578,7 +579,7 @@ const FinesTab = () => {
             field: "fineTypeName",
             flex: 1.5,
             cellRenderer: (p: any) => (
-                <span className="bg-rose-50 text-rose-600 px-3 py-1 rounded-full text-xs font-black">
+                <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-black">
                     {p.value}
                 </span>
             ),
@@ -588,31 +589,31 @@ const FinesTab = () => {
             field: "bookTitle",
             flex: 1.5,
             valueFormatter: (p) => p.value ?? "—",
-            cellStyle: { color: "#475569", fontWeight: "600", textAlign: "right" },
+            cellStyle: { color: "#1e293b", fontWeight: "600", textAlign: "right" },
         },
         {
             headerName: "التاريخ",
             field: "date",
             valueFormatter: (p) => new Date(p.value).toLocaleDateString("en-CA"),
-            cellStyle: { color: "#64748b", textAlign: "right" },
+            cellStyle: { color: "#1e293b", textAlign: "right" },
         },
         {
             headerName: "المبلغ",
             field: "amount",
             cellRenderer: (p: any) => (
-                <span className="font-black text-rose-600">{p.value} ₪</span>
+                <span className="font-black text-red-700">{p.value} ₪</span>
             ),
         },
         {
             headerName: "الموظف",
             field: "employeeName",
             valueFormatter: (p) => p.value ?? "—",
-            cellStyle: { color: "#94a3b8", textAlign: "right" },
+            cellStyle: { color: "#1e293b", textAlign: "right" },
         },
     ], []);
 
     return (
-        <TableCard icon={<Receipt size={20} />} title="سجل المخالفات" count={result?.totalCount} accentClass="bg-rose-50 text-rose-500" loading={loading}>
+        <TableCard icon={<Receipt size={20} />} title="سجل المخالفات" count={result?.totalCount} accentClass="bg-red-100 text-red-700" loading={loading}>
             {result?.data.length === 0 ? <EmptyState /> : (
                 <>
                     <div className="w-full" dir="rtl">
@@ -639,7 +640,6 @@ const FinesTab = () => {
     );
 };
 
-// ─── Main Profile ─────────────────────────────────────────────────────────────
 
 const Profile = () => {
     const [data, setData] = useState<any>(null);
@@ -664,10 +664,10 @@ const Profile = () => {
     }, [toast]);
 
     if (loading) return (
-        <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
+        <div className="min-h-screen flex flex-col bg-[#FEF2F2]">
             <Header />
             <div className="flex-1 container mx-auto px-4 py-8 space-y-6">
-                <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm anim-fade-in">
+                <div className="bg-white rounded-[2.5rem] p-8 border border-red-100 shadow-sm anim-fade-in">
                     <div className="flex flex-col lg:flex-row items-center justify-between gap-8">
                         <div className="flex items-center gap-8 w-full">
                             <div className="w-28 h-28 rounded-[2rem] shrink-0 shimmer-row" style={{ height: "7rem", width: "7rem", borderRadius: "1.5rem" }} />
@@ -682,7 +682,7 @@ const Profile = () => {
                 </div>
                 <div className="shimmer-row anim-fade-in delay-100" style={{ height: "3.5rem", borderRadius: "1rem" }} />
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 anim-fade-up delay-200">
-                    <div className="lg:col-span-2 bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm space-y-6">
+                    <div className="lg:col-span-2 bg-white rounded-[2.5rem] p-8 border border-red-100 shadow-sm space-y-6">
                         {[1, 2, 3, 4, 5, 6].map(i => (
                             <div key={i} className="flex items-center gap-4">
                                 <div className="shimmer-row shrink-0" style={{ width: "2.5rem", height: "2.5rem", borderRadius: "0.75rem" }} />
@@ -693,7 +693,7 @@ const Profile = () => {
                             </div>
                         ))}
                     </div>
-                    <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm space-y-4">
+                    <div className="bg-white rounded-[2.5rem] p-8 border border-red-100 shadow-sm space-y-4">
                         <div className="shimmer-row" style={{ width: "8rem", height: "1.25rem" }} />
                         <div className="shimmer-row" style={{ width: "100%", height: "6rem", borderRadius: "1.5rem" }} />
                         <div className="shimmer-row" style={{ width: "100%", height: "2.5rem", borderRadius: "1rem" }} />
@@ -711,40 +711,40 @@ const Profile = () => {
     const fullName = `${memberInfo.firstName} ${memberInfo.fatherName} ${memberInfo.grandfatherName} ${memberInfo.familyName}`;
 
     return (
-        <div className="home-theme min-h-screen bg-[#F8FAFC] flex flex-col" dir="rtl">
-            <Header />
+<div className="home-theme min-h-screen bg-[#FEF2F2] flex flex-col" dir="rtl">
+                <Header />
 
             <main className="flex-1 container mx-auto px-4 py-8">
 
                 {/* Hero */}
-                <div className="bg-white rounded-[2.5rem] p-8 mb-8 shadow-sm border border-slate-100 relative overflow-hidden anim-fade-up">
-                    <div className="absolute top-0 left-0 w-64 h-64 bg-secondary/5 rounded-full -translate-x-20 -translate-y-20 blur-3xl" />
+                <div className="bg-white rounded-[2.5rem] p-8 mb-8 shadow-sm border border-red-100 relative overflow-hidden anim-fade-up">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-red-50 rounded-full -translate-y-20 translate-x-20 blur-3xl" />
                     <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-8">
                         <div className="flex flex-col md:flex-row items-center gap-8 text-center md:text-right anim-slide-r delay-150">
                             <div className="relative group anim-scale-in delay-200">
-                                <div className={`w-28 h-28 ${isExpired ? "bg-rose-500" : "bg-secondary"} rounded-[2rem] flex items-center justify-center text-white shadow-2xl transition-all duration-500 group-hover:rotate-3`}>
+                                <div className={`w-28 h-28 ${isExpired ? "bg-red-600" : "bg-red-600"} rounded-[2rem] flex items-center justify-center text-white shadow-2xl transition-all duration-500 group-hover:rotate-3`}>
                                     <User size={56} />
                                 </div>
-                                <div className={`absolute -bottom-2 -right-2 ${isExpired ? "bg-rose-600" : "bg-emerald-500"} border-4 border-white text-white p-2 rounded-2xl shadow-md`}>
+                                <div className={`absolute -bottom-2 -right-2 ${isExpired ? "bg-red-700" : "bg-red-500"} border-4 border-white text-white p-2 rounded-2xl shadow-md`}>
                                     {isExpired ? <AlertTriangle size={18} /> : <UserCheck size={18} />}
                                 </div>
                             </div>
                             <div className="space-y-2">
                                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
                                     <h1 className="text-3xl font-black text-slate-900 tracking-tight">{fullName}</h1>
-                                    <Badge className={`${isExpired ? "bg-rose-100 text-rose-600" : "bg-secondary/10 text-secondary"} border-none px-4 py-1 rounded-full font-black text-xs`}>
+                                    <Badge className={`${isExpired ? "bg-red-100 text-red-700" : "bg-red-50 text-red-600"} border-none px-4 py-1 rounded-full font-black text-xs`}>
                                         {subscriptionInfo.memberClassification}
                                     </Badge>
                                 </div>
                                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-6 text-slate-500 font-bold text-sm">
-                                    <span className="flex items-center gap-2"><Hash size={18} className="text-secondary/60" /> {memberInfo.memberNumber}</span>
-                                    <span className="flex items-center gap-2"><Briefcase size={18} className="text-secondary/60" /> {memberInfo.job}</span>
-                                    <span className="flex items-center gap-2"><MapPin size={18} className="text-secondary/60" /> {memberInfo.city}</span>
+                                    <span className="flex items-center gap-2"><Hash size={18} className="text-red-400" /> {memberInfo.memberNumber}</span>
+                                    <span className="flex items-center gap-2"><Briefcase size={18} className="text-red-400" /> {memberInfo.job}</span>
+                                    <span className="flex items-center gap-2"><MapPin size={18} className="text-red-400" /> {memberInfo.city}</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div className={`${isExpired ? "bg-rose-600" : "bg-slate-900"} text-white p-6 rounded-[2rem] min-w-[240px] shadow-xl relative overflow-hidden group transition-colors duration-500 anim-fade-up delay-300`}>
+                                          <div className={`${isExpired ? "bg-rose-600" : "bg-slate-900"} text-white p-6 rounded-[2rem] min-w-[240px] shadow-xl relative overflow-hidden group transition-colors duration-500 anim-fade-up delay-300`}>
                             <div className="absolute bottom-0 right-0 opacity-10 group-hover:scale-110 transition-transform">
                                 <CreditCard size={100} />
                             </div>
@@ -759,31 +759,32 @@ const Profile = () => {
                 </div>
 
                 <Tabs defaultValue="overview" className="space-y-8 anim-fade-up delay-400">
-                    <TabsList className="bg-white p-1 rounded-2xl h-14 border border-slate-100 shadow-sm flex w-full overflow-x-auto gap-1">
-                        <TabsTrigger value="overview" className="flex-1 rounded-xl font-bold gap-2 data-[state=active]:bg-secondary data-[state=active]:text-white whitespace-nowrap">
-                            <LayoutGrid size={18} /> نظرة عامة
-                        </TabsTrigger>
-                        <TabsTrigger value="current-borrows" className="flex-1 rounded-xl font-bold gap-2 data-[state=active]:bg-secondary data-[state=active]:text-white whitespace-nowrap">
+                    <TabsList className="bg-white p-1 rounded-2xl h-14 border border-red-100 shadow-sm flex w-full overflow-x-auto gap-1">
+                       <TabsTrigger value="fines" className="flex-1 rounded-xl font-bold gap-2 data-[state=active]:bg-red-600 data-[state=active]:text-white whitespace-nowrap">
+                            <Receipt size={18} /> سجل مخالفات
+                        </TabsTrigger> 
+                        <TabsTrigger value="current-borrows" className="flex-1 rounded-xl font-bold gap-2 data-[state=active]:bg-red-600 data-[state=active]:text-white whitespace-nowrap">
                             <BookMarked size={18} /> إعارات حالية
                         </TabsTrigger>
-                        <TabsTrigger value="subscriptions" className="flex-1 rounded-xl font-bold gap-2 data-[state=active]:bg-secondary data-[state=active]:text-white whitespace-nowrap">
+                        <TabsTrigger value="subscriptions" className="flex-1 rounded-xl font-bold gap-2 data-[state=active]:bg-red-600 data-[state=active]:text-white whitespace-nowrap">
                             <RefreshCw size={18} /> سجل اشتراكات
                         </TabsTrigger>
-                        <TabsTrigger value="borrow-history" className="flex-1 rounded-xl font-bold gap-2 data-[state=active]:bg-secondary data-[state=active]:text-white whitespace-nowrap">
+                        <TabsTrigger value="borrow-history" className="flex-1 rounded-xl font-bold gap-2 data-[state=active]:bg-red-600 data-[state=active]:text-white whitespace-nowrap">
                             <History size={18} /> سجل إعارات
                         </TabsTrigger>
-                        <TabsTrigger value="fines" className="flex-1 rounded-xl font-bold gap-2 data-[state=active]:bg-secondary data-[state=active]:text-white whitespace-nowrap">
-                            <Receipt size={18} /> سجل مخالفات
+                       
+                         <TabsTrigger value="overview" className="flex-1 rounded-xl font-bold gap-2 data-[state=active]:bg-red-600 data-[state=active]:text-white whitespace-nowrap">
+                            <LayoutGrid size={18} /> نظرة عامة
                         </TabsTrigger>
                     </TabsList>
 
                     {/* نظرة عامة */}
                     <TabsContent value="overview" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                            <div className="lg:col-span-2 space-y-8">
-                                <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 anim-fade-up delay-100">
+                              <div className="lg:col-span-2 lg:order-1 order-2 space-y-8">
+                                <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-red-100 anim-fade-up delay-100">
                                     <div className="flex items-center gap-3 mb-8">
-                                        <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-600"><UserCheck size={20} /></div>
+                                        <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-600"><UserCheck size={20} /></div>
                                         <h2 className="text-xl font-black text-slate-800">البيانات الشخصية</h2>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
@@ -796,9 +797,9 @@ const Profile = () => {
                                     </div>
                                 </section>
 
-                                <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 anim-fade-up delay-200">
+                                <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-red-100 anim-fade-up delay-200">
                                     <div className="flex items-center gap-3 mb-8">
-                                        <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-600"><ShieldCheck size={20} /></div>
+                                        <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-600"><ShieldCheck size={20} /></div>
                                         <h2 className="text-xl font-black text-slate-800">بيانات الكفيل الضامن</h2>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
@@ -814,24 +815,24 @@ const Profile = () => {
                             </div>
 
                             <aside>
-                                <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden sticky top-24 anim-fade-up delay-300">
+                                <div className="bg-white rounded-[2.5rem] shadow-xl border border-red-100 overflow-hidden sticky top-24 anim-fade-up delay-300">
                                     <div className="p-8">
                                         <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
-                                            <CreditCard className={isExpired ? "text-rose-500" : "text-secondary"} /> حالة الاشتراك
+                                            <CreditCard className={isExpired ? "text-red-600" : "text-red-600"} /> حالة الاشتراك
                                         </h3>
                                         <div className="space-y-4">
-                                            <div className="flex justify-between text-sm py-2 border-b border-slate-50 text-slate-500">
+                                            <div className="flex justify-between text-sm py-2 border-b border-red-50 text-slate-500">
                                                 <span>نوع الاشتراك:</span>
                                                 <span className="font-bold text-slate-800">{subscriptionInfo.subscriptionType}</span>
                                             </div>
-                                            <div className={`py-8 ${isExpired ? "bg-rose-50 border-rose-100" : "bg-secondary/5 border-secondary/10"} rounded-[2rem] text-center border mt-4`}>
-                                                <p className={`text-[10px] font-black ${isExpired ? "text-rose-500" : "text-secondary"} uppercase mb-1 tracking-widest`}>سعر الاشتراك</p>
-                                                <p className={`text-5xl font-black ${isExpired ? "text-rose-600" : "text-secondary"}`}>{subscriptionInfo.amount} <span className="text-xl">₪</span></p>
+                                            <div className={`py-8 ${isExpired ? "bg-red-50 border-red-200" : "bg-red-50 border-red-200"} rounded-[2rem] text-center border mt-4`}>
+                                                <p className={`text-[10px] font-black ${isExpired ? "text-red-600" : "text-red-600"} uppercase mb-1 tracking-widest`}>سعر الاشتراك</p>
+                                                <p className={`text-5xl font-black ${isExpired ? "text-red-700" : "text-red-700"}`}>{subscriptionInfo.amount} <span className="text-xl">₪</span></p>
                                             </div>
                                             {isExpired && (
-                                                <div className="bg-rose-50 p-4 rounded-2xl border border-rose-100 flex gap-2 items-center">
-                                                    <AlertTriangle size={20} className="text-rose-600 shrink-0" />
-                                                    <p className="text-[11px] text-rose-800 font-bold leading-tight">يرجى تجديد الاشتراك لاستعادة كامل صلاحيات المكتبة.</p>
+                                                <div className="bg-red-50 p-4 rounded-2xl border border-red-200 flex gap-2 items-center">
+                                                    <AlertTriangle size={20} className="text-red-600 shrink-0" />
+                                                    <p className="text-[11px] text-red-800 font-bold leading-tight">يرجى تجديد الاشتراك لاستعادة كامل صلاحيات المكتبة.</p>
                                                 </div>
                                             )}
                                         </div>
@@ -861,16 +862,15 @@ const Profile = () => {
     );
 };
 
-// ─── InfoItem ─────────────────────────────────────────────────────────────────
 
 const InfoItem = ({ icon, label, value }: { icon: any; label: string; value: string }) => (
     <div className="flex items-start gap-4 group transition-transform duration-200 hover:-translate-y-0.5">
-        <div className="mt-1 p-2.5 bg-[#F8FAFC] text-slate-400 rounded-2xl group-hover:bg-secondary/10 group-hover:text-secondary transition-all duration-300 group-hover:shadow-sm">
+        <div className="mt-1 p-2.5 bg-red-50 text-red-400 rounded-2xl group-hover:bg-red-100 group-hover:text-red-600 transition-all duration-300 group-hover:shadow-sm">
             {icon}
         </div>
         <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-            <p className="text-[15px] font-bold text-slate-800 group-hover:text-secondary transition-colors duration-300">{value || "—"}</p>
+            <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1">{label}</p>
+            <p className="text-[15px] font-bold text-slate-800 group-hover:text-red-600 transition-colors duration-300">{value || "—"}</p>
         </div>
     </div>
 );

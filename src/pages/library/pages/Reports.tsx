@@ -23,7 +23,6 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/ui/select";
 
-// ── Register AG Grid modules once (v35 pattern)
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 // ── Theme: inherit the host app's font & sizing, keep AG Grid's quartz look
@@ -130,7 +129,16 @@ const DEFAULT_FILTERS: FilterState = {
 
 const COPYRIGHT_FOOTER = `© ${new Date().getFullYear()} جميع حقوق الملكية والفكرية محفوظة وفقاً لمذكرة التفاهم الموقعة بين جامعة فلسطين التقنية - خضوري وبلدية طولكرم`;
 
+const getArabicStatus = (status: string) => {
+  const map: Record<string, string> = {
+    "Available": "متاح",
+    "Borrowed": "معار",
+    "Reserved": "محجوز",
+    "Removed": "مخرج",
+  };
 
+  return map[status] ?? status;
+};
 
 const StatusBadge = ({ status }: { status: string }) => {
   const map: Record<string, string> = {
@@ -328,7 +336,7 @@ const buildPrintHTML = (title: string, headers: string[], rows: string[][], tota
   </style></head><body>
 <div class="header">
   <div class="top-info"><div>اليوم: ${day}</div><div>التاريخ: ${date}</div></div>
-  <div class="logos"><img src="/Logo.jpeg"/><div class="divider"></div><img src="/slogan.jpeg"/></div>
+  <div class="logos"><img src="/Logo.webp"/><div class="divider"></div><img src="/logo2.webp"/></div>
   <div class="header-title">
     <h1>📚 مكتبة بلدية طولكرم</h1>
     <h2>${title}</h2>
@@ -497,13 +505,11 @@ const handleExport = useCallback(async () => {
     let filename = "تقرير.xlsx";
 
     if (disposition) {
-      // ✅ 1) UTF-8 filename*
       const utf8Match = disposition.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
 
       if (utf8Match?.[1]) {
         filename = decodeURIComponent(utf8Match[1]);
       } else {
-        // ✅ 2) fallback filename=""
         const normalMatch = disposition.match(/filename\s*=\s*"?([^"]+)"?/i);
         if (normalMatch?.[1]) {
           filename = normalMatch[1];
@@ -551,19 +557,19 @@ const handleExport = useCallback(async () => {
       switch (activeTab) {
         case "classification":
         case "material-type":
-          headers = ["#","عنوان الكتاب","المؤلف","رقم التصنيف","نوع المادة","الحالة"];
-          rows = allData.map(b => [String(b.serialNo),b.title,b.author,b.classification,b.materialType,b.status]);
+          headers = ["رقم التسلسلي","عنوان الكتاب","المؤلف","رقم التصنيف","نوع المادة","الحالة"];
+          rows = allData.map(b => [String(b.serialNo),b.title,b.author,b.classification,b.materialType,getArabicStatus(b.status)]);
           break;
         case "entry-date":
-          headers = ["#","عنوان الكتاب","المؤلف","تاريخ الإدخال","رقم التصنيف","نوع المادة","الحالة"];
-          rows = allData.map(b => [String(b.serialNo),b.title,b.author,b.entryDate??"",b.classification,b.materialType,b.status]);
+          headers = ["رقم التسلسلي","عنوان الكتاب","المؤلف","تاريخ الإدخال","رقم التصنيف","نوع المادة","الحالة"];
+          rows = allData.map(b => [String(b.serialNo),b.title,b.author,b.entryDate??"",b.classification,b.materialType,getArabicStatus(b.status)]);
           break;
         case "supply-method":
-          headers = ["#","عنوان الكتاب","المؤلف","رقم التصنيف","اسم المزود","طريقة التزويد","تاريخ الإدخال","الحالة"];
-          rows = allData.map(b => [String(b.serialNo),b.title,b.author,b.classification,b.supplierName??"",b.supplyMethod??"",b.entryDate??"",b.status]);
+          headers = ["رقم التسلسلي ","عنوان الكتاب","المؤلف","رقم التصنيف","اسم المزود","طريقة التزويد","تاريخ الإدخال","الحالة"];
+          rows = allData.map(b => [String(b.serialNo),b.title,b.author,b.classification,b.supplierName??"",b.supplyMethod??"",b.entryDate??"",getArabicStatus(b.status)]);
           break;
         case "discarded":
-          headers = ["#","عنوان الكتاب","المؤلف","رقم التصنيف","سبب الإخراج","تاريخ الإخراج"];
+          headers = ["رقم التسلسلي","عنوان الكتاب","المؤلف","رقم التصنيف","سبب الإخراج","تاريخ الإخراج"];
           rows = allData.map(b => [String(b.serialNo),b.title,b.author,b.classification,b.removeReason??"",b.discardDate??""]);
           break;
       }
@@ -585,11 +591,11 @@ const handleExport = useCallback(async () => {
   const columnDefs = useMemo<ColDef<BookRecord>[]>(() => {
     // ── Reusable column objects
     const serial: ColDef<BookRecord> = {
-      headerName: "#", field: "serialNo", width: 72, sortable: false,
+      headerName: "رقم التسلسلي", field: "serialNo", width: 180, sortable: false,
       cellClass: "font-mono text-xs text-muted-foreground",
     };
     const title: ColDef<BookRecord> = {
-      headerName: "عنوان الكتاب", field: "title", flex: 2, minWidth: 180,
+      headerName: "عنوان الكتاب", field: "title", flex: 2, minWidth: 100,
       cellClass: "font-medium text-sm",
     };
     const author: ColDef<BookRecord> = {

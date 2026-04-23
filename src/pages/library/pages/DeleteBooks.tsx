@@ -306,7 +306,7 @@ body{margin:20mm;font-family:"Cairo",Arial,sans-serif;direction:rtl;color:#2c3e5
         </head><body>
         <div class="header">
           <div class="top-info"><div>اليوم: ${day}</div><div>التاريخ: ${date}</div></div>
-          <div class="logos"><img src="/Logo.jpeg"/><div class="divider"></div><img src="/slogan.jpeg"/></div>
+          <div class="logos"><img src="/Logo.webp"/><div class="divider"></div><img src="/logo2.webp"/></div>
           <div class="header-title">
             <h1>📚 مكتبة البلدية</h1>
             <h2>تقرير إخراج الكتب</h2>

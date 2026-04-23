@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, User, LogOut, LogIn, LayoutDashboard, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import logo from "@/assets/lib.jpeg";
+import logo from "@/assets/main-logo.webp";
+import { useEffect } from "react";
 
 const Header = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -22,6 +23,7 @@ const Header = () => {
     { to: "/contact", label: "تواصل معنا" },
   ];
 
+  
   // دالة الخروج النهائية
   const handleLogout = () => {
     logout(); // تقوم بمسح التوكن وإعادة توجيه المتصفح
@@ -78,7 +80,7 @@ const Header = () => {
                   <div className="flex items-center gap-3 bg-muted/40 p-1.5 rounded-2xl border">
                     <div className="px-3 hidden lg:block">
                       <p className="text-[10px] text-muted-foreground leading-none">مرحباً بك</p>
-                      <p className="text-sm font-bold truncate max-w-[120px]">{user?.userName}</p>
+                      <p className="text-xs font-bold truncate max-w-[120px]">{user?.userName}</p>
                     </div>
 
                     {/* زر مخصص بناءً على الدور */}
@@ -154,9 +156,13 @@ const Header = () => {
                         متصل كـ: <span className="font-bold text-foreground">{user?.userName}</span>
                       </div>
                       {user?.role === "Employee" || user?.role === "Admin" ? (
-                          <Link to="/admin/dash" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 py-4 px-4 text-slate-900 font-bold hover:bg-muted rounded-xl">
-                            <LayoutDashboard size={20} /> لوحة التحكم
-                          </Link>
+                       <Link
+  to={localStorage.getItem("token") ? "/admin/dash" : "/login"}
+  onClick={() => setMobileOpen(false)}
+  className="flex items-center gap-3 py-4 px-4 text-slate-900 font-bold hover:bg-muted rounded-xl"
+>
+  <LayoutDashboard size={20} /> لوحة التحكم
+</Link>
                       ) : (
                           <Link to="/member-profile" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 py-4 px-4 text-secondary font-bold hover:bg-muted rounded-xl">
                             <User size={20} /> ملفي الشخصي
@@ -172,7 +178,6 @@ const Header = () => {
           </nav>
         </div>
 
-        {/* مودال تأكيد تسجيل الخروج */}
         {showLogoutConfirm && (
             <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
               <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowLogoutConfirm(false)} />

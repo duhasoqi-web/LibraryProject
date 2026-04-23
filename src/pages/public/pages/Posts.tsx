@@ -139,7 +139,7 @@ const Posts = () => {
                                 className={`px-6 py-2.5 rounded-xl text-xs md:text-sm font-bold transition-all shadow-none duration-300 ${
                                     filter === cat
                                         ? "bg-[#1e1a4d] text-white scale-105"
-                                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                                        : "bg-white text-slate-600 border-slate-200 hover:bg-red-500"
                                 }`}
                             >
                                 {cat}

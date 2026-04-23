@@ -4,10 +4,11 @@ import { useTheme } from "@/contexts/ThemeProvider";
 import { Moon, Sun, Menu, BookOpen, ShieldCheck } from "lucide-react";
 import { Button } from "@/ui/button";
 import Footer from "@/pages/admin/pages/Footer";
+import { useNavigate } from "react-router-dom";
 
 // استيراد الشعار
-import sloganLogo from "@/assets/slogan.jpeg";
-import logo from "@/assets/upscalemedia-transformed.png";
+import sloganLogo from "@/assets/slogan.webp";
+import logo from "@/assets/upscalemedia-transformed.webp";
 
 
 interface AdminLayoutProps {
@@ -17,6 +18,7 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const { theme, toggleTheme } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const navigate = useNavigate(); // ✅
 
   const userName = localStorage.getItem("userName") || "الموظف";
 
@@ -55,12 +57,19 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </div>
         </div>
 
-        {/* القسم الأوسط - الشعار الكبير (يظهر في منتصف الشاشة على الكمبيوتر ويختفي على الموبايل) */}
-        <div className="hidden lg:flex absolute left-1/2 -translate-x-1/2 items-center gap-5">
-          <div className="flex items-center gap-4 bg-indigo-50 dark:bg-indigo-950/50 px-4 py-2 rounded-full border-2 border-dashed border-indigo-200 dark:border-indigo-800">
+    <div
+onClick={() => navigate("/admin/dash")}
+          className="hidden lg:flex absolute left-1/2 -translate-x-1/2 items-center gap-5 cursor-pointer group"
+        >
+          <div className="flex items-center gap-4 bg-indigo-50 dark:bg-indigo-950/50 px-4 py-2 rounded-full border-2 border-dashed border-indigo-200 dark:border-indigo-800
+            transition-all duration-300
+            group-hover:border-indigo-400 dark:group-hover:border-indigo-600
+            group-hover:shadow-lg group-hover:shadow-indigo-100 dark:group-hover:shadow-indigo-950
+            group-hover:scale-[1.02]">
             <img
               src={sloganLogo}
-              className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover shadow-md border-4 border-white dark:border-slate-800"
+              className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover shadow-md border-4 border-white dark:border-slate-800
+                transition-transform duration-300 group-hover:rotate-[-6deg]"
               alt="شعار البلدية والمكتبة"
             />
             <div className="w-px h-6 bg-indigo-200 dark:bg-indigo-800" />
@@ -72,18 +81,27 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             </div>
             <img
               src={logo}
-              className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover shadow-md border-4 border-white dark:border-slate-800"
+              className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover shadow-md border-4 border-white dark:border-slate-800
+                transition-transform duration-300 group-hover:rotate-[6deg]"
               alt="شعار البلدية والمكتبة"
             />
           </div>
         </div>
 
-        {/* شعار مصغر يظهر على الموبايل والتابلت */}
-        <div className="flex lg:hidden items-center justify-center w-full md:w-auto">
-          <div className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-950/50 px-3 py-1.5 rounded-full border border-indigo-200 dark:border-indigo-800">
+        {/* ✅ الشعار المصغر - موبايل/تابلت - قابل للضغط */}
+        <div
+onClick={() => navigate("/admin/dash")}
+          className="flex lg:hidden items-center justify-center w-full md:w-auto cursor-pointer group"
+        >
+          <div className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-950/50 px-3 py-1.5 rounded-full border border-indigo-200 dark:border-indigo-800
+            transition-all duration-300
+            group-hover:border-indigo-400 dark:group-hover:border-indigo-600
+            group-hover:shadow-md group-hover:shadow-indigo-100 dark:group-hover:shadow-indigo-950
+            active:scale-95">
             <img
               src={sloganLogo}
-              className="w-8 h-8 rounded-full object-cover border-2 border-white dark:border-slate-800"
+              className="w-8 h-8 rounded-full object-cover border-2 border-white dark:border-slate-800
+                transition-transform duration-300 group-hover:rotate-[-6deg]"
               alt="شعار البلدية والمكتبة"
             />
             <div className="w-px h-4 bg-indigo-200 dark:bg-indigo-800" />
@@ -92,13 +110,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             </span>
             <img
               src={logo}
-              className="w-8 h-8 rounded-full object-cover border-2 border-white dark:border-slate-800"
+              className="w-8 h-8 rounded-full object-cover border-2 border-white dark:border-slate-800
+                transition-transform duration-300 group-hover:rotate-[6deg]"
               alt="شعار البلدية والمكتبة"
             />
           </div>
         </div>
 
-        {/* القسم الأيسر - أيقونة المكتبة */}
         <div className="flex items-center gap-2 md:gap-3">
           <span className="text-xs md:text-sm font-black text-slate-700 dark:text-slate-200 hidden sm:block">مكتبة البلدية</span>
           <div className="w-8 h-8 md:w-11 md:h-11 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-none ring-2 md:ring-4 ring-indigo-50 dark:ring-indigo-900/30">
