@@ -223,7 +223,7 @@ export default function SubscribersTab() {
       {/* Header */}
       <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">طلبات الأونلاين</h1>
+          <h1 className="text-2xl font-black text-slate-800">طلبات الاشتراك</h1>
           <div className="flex items-center gap-2 mt-1">
             <p className="text-slate-500 text-sm">مراجعة الطلبات المعلقة وتفعيلها</p>
             <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
@@ -250,6 +250,7 @@ export default function SubscribersTab() {
       {/* Table Section */}
       <div className="bg-white rounded-[2rem] shadow-xl border h-[500px] overflow-hidden p-2">
         <AgGridTable
+         title=" طلبات الاشتراك "
           rowData={subs}
           columnDefs={[
             { headerName: "الاسم الكامل", field: "fullName", flex: 1.2, minWidth: 200 },

@@ -2,10 +2,10 @@ import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { AgGridReact } from "ag-grid-react";
 import { AllCommunityModule, ModuleRegistry, themeQuartz } from "ag-grid-community";
 import { Download, Printer } from "lucide-react";
-import * as XLSX from "xlsx";
 import libraryLogo from "@/assets/upscalemedia-transformed.webp";
-import municipalityLogo from "@/assets/slogan.webp"; 
+import municipalityLogo from "@/assets/slogan.webp";
 import { toast } from "sonner";
+import * as XLSX from "xlsx-js-style";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -17,9 +17,9 @@ interface AgGridTableProps {
   showPrint?: boolean;
   pageSize?: number;
   enableRtl?: boolean;
-  pagination?: boolean; 
+  pagination?: boolean;
   printValueFormatter?: (field: string, value: any) => string;
-  onFetchAll?: () => Promise<any[]>; // ✅ الخاصية المطلوبة للجلب الشامل
+  onFetchAll?: () => Promise<any[]>;
 }
 
 export default function AgGridTable({
@@ -29,13 +29,13 @@ export default function AgGridTable({
   showExport = true,
   showPrint = true,
   pageSize = 10,
-  pagination = true, 
+  pagination = true,
   printValueFormatter,
-  onFetchAll, // ✅ استلام الخاصية
+  onFetchAll,
 }: AgGridTableProps) {
   const gridRef = useRef<AgGridReact>(null);
 
-  // --- جزء مراقبة الثيم لضمان التحديث اللحظي ---
+
   const [isDarkMode, setIsDarkMode] = useState(
     typeof document !== "undefined" && document.documentElement.classList.contains("dark")
   );
@@ -57,7 +57,6 @@ export default function AgGridTable({
     foregroundColor: isDarkMode ? "#f1f5f9" : "#1f2937",
     headerBackgroundColor: isDarkMode ? "#0f172a" : "#f8fafc",
   }), [isDarkMode]);
-  // ------------------------------------------
 
   const defaultColDef = useMemo(() => ({
     flex: 1,
@@ -70,7 +69,6 @@ export default function AgGridTable({
     tooltipValueGetter: (p: any) => p.value,
   }), []);
 
-  // دالة المعالجة الموحدة (نفس منطقك تماماً)
   const getProcessedData = useCallback((dataToProcess: any[]) => {
     return dataToProcess.map(item => {
       const row: any = {};
@@ -100,46 +98,107 @@ export default function AgGridTable({
     });
   }, [columnDefs, printValueFormatter]);
 
+
   const exportExcel = useCallback(async () => {
     if (!rowData || rowData.length === 0) {
-      toast.error("لا توجد بيانات لتصديرها"); // تأكد من استيراد toast إذا كنت تستخدمه هنا
+      toast.error("لا توجد بيانات لتصديرها");
       return;
     }
-    let rawData = [];
 
+    let rawDataToExport = [];
     if (onFetchAll) {
-      rawData = await onFetchAll();
+      rawDataToExport = await onFetchAll();
     } else {
       gridRef.current?.api.forEachNodeAfterFilterAndSort((node) => {
-        if (node.data) rawData.push(node.data);
+        if (node.data) rawDataToExport.push(node.data);
       });
     }
 
-    const processedData = getProcessedData(rawData);
-    if (processedData.length === 0) return;
+    const headers = columnDefs
+      .filter(col => col.field !== "actions")
+      .map(col => col.headerName);
 
-    const worksheet = XLSX.utils.json_to_sheet(processedData, { origin: "A3" } as any);
-    XLSX.utils.sheet_add_aoa(worksheet, [[title || "تقرير"]], { origin: "A1" });
+    const dataRows = rawDataToExport.map(item => {
+      return columnDefs
+        .filter(col => col.field !== "actions")
+        .map(col => {
+          let value = item[col.field];
+          if (printValueFormatter) value = printValueFormatter(col.field, value);
+          if (col.field?.toLowerCase().includes("date") && value) {
+            const d = new Date(value);
+            return isNaN(d.getTime()) ? value : d.toISOString().split('T')[0];
+          }
+          return value ?? "-";
+        });
+    });
 
-    const colWidths = Object.keys(processedData[0] || {}).map((key) => ({
-      wch: Math.max(key.length, ...processedData.map((row) => (row[key] ? row[key].toString().length : 0))) + 2
-    }));
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
 
-    worksheet["!cols"] = colWidths;
+    worksheet['!views'] = [{ RTL: true, workbookViewId: 0 }];
+
+    const range = XLSX.utils.decode_range(worksheet['!ref']!);
+
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const address = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!worksheet[address]) continue;
+
+        if (!worksheet[address].s) worksheet[address].s = {};
+
+        worksheet[address].s.alignment = {
+          horizontal: "right",
+          vertical: "center",
+          readingOrder: 2
+        };
+
+        if (R === 0) {
+          worksheet[address].s = {
+            ...worksheet[address].s,
+            fill: { patternType: "solid", fgColor: { rgb: "D3D3D3" } },
+            font: { bold: true, name: "Arial", sz: 12 },
+            border: {
+              top: { style: "thin" }, bottom: { style: "thin" },
+              left: { style: "thin" }, right: { style: "thin" }
+            }
+          };
+        }
+      }
+    }
+
+    worksheet["!cols"] = headers.map(() => ({ wch: 20 }));
+
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Report");
-    XLSX.writeFile(workbook, `${title || "data"}.xlsx`);
-  }, [onFetchAll, getProcessedData, title]);
 
- const printTable = useCallback(async () => {
+    const wb = workbook as any;
+    wb.Workbook = {
+      Views: [
+        { RTL: true }
+      ]
+    };
 
-  if (!rowData || rowData.length === 0) {
-      toast.error("لا توجد بيانات للطباعة"); // أو استخدم toast.error
+    // --- التعديل المطلوب هنا فقط ---
+    // 1. استخدام title لاسم الـ Sheet (مع حد أقصى 31 حرف للأمان في إكسل)
+    const safeSheetName = (title || "التقرير").slice(0, 30);
+    XLSX.utils.book_append_sheet(workbook, worksheet, safeSheetName);
+
+    // 2. استخدام title لاسم الملف النهائي
+    XLSX.writeFile(workbook, `${title || "تقرير"}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    // -------------------------------
+
+    toast.success("تم التصدير بنجاح");
+
+  }, [rowData, columnDefs, title, onFetchAll, printValueFormatter]);
+
+
+  const printTable = useCallback(async () => {
+
+    if (!rowData || rowData.length === 0) {
+      toast.error("لا توجد بيانات للطباعة");
       return;
     }
-  
+
     let rawData = [];
-    
+
     if (onFetchAll) {
       rawData = await onFetchAll();
     } else {
@@ -164,10 +223,10 @@ export default function AgGridTable({
 
         if ((!val || val === row[c.field]) && c.field?.toLowerCase().includes("date") && val) {
           if (typeof val === "string") {
-             val = val.split("T")[0];
+            val = val.split("T")[0];
           } else {
-             const d = new Date(val);
-             val = isNaN(d.getTime()) ? val : d.toLocaleDateString("ar-EG");
+            const d = new Date(val);
+            val = isNaN(d.getTime()) ? val : d.toLocaleDateString("ar-EG");
           }
         }
         if (typeof val === "string") val = val.replace(/<[^>]*>?/gm, "");
@@ -280,8 +339,8 @@ export default function AgGridTable({
             </button>
           )}
           {showPrint && (
-            <button 
-              onClick={printTable} 
+            <button
+              onClick={printTable}
               className="flex items-center gap-1.5 px-4 py-3 rounded-xl text-sm font-medium bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-slate-700 dark:text-gray-200 transition-all"
             >
               <Printer className="w-3.5 h-3.5" /> طباعة التقرير

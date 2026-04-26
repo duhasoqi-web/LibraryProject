@@ -417,32 +417,104 @@ const handleSave = async () => {
     setSaving(false); 
   }
 };
-  const handleExportExcel = async () => {
-    if (!searchValue.trim()) { toast.warning("ابحث أولاً ثم صدّر"); return; }
+ const handleExportExcel = async () => {
+    if (!searchValue.trim()) { 
+      toast.warning("ابحث أولاً ثم صدّر البيانات"); 
+      return; 
+    }
+    
     setExporting(true);
     toast.info("جاري تجهيز البيانات للتصدير...");
 
     try {
+      // 1. جلب البيانات من كل الصفحات (منطقك الأصلي)
       const allData = await fetchAllPages(searchValue, searchType);
 
-      const rows = allData.map((b) => ({
-        "رقم التسلسل": b.serialNumber ?? "",
-        "رمز التصنيف": b.classificationCode ?? "",
-        "لاحقة": b.suffix ?? "",
-        "العنوان": b.title ?? "",
-        "المؤلف": Array.isArray(b.authors) ? b.authors.map((a: any) => a.name).join(", ") : b.authors ?? "",
-        "عدد الصفحات": b.numberOfPages ?? "",
-        "الأبعاد": b.dimensions ?? "",
-        "الحالة": statusMap[b.status] ?? b.status ?? "",
-      }));
+      const headers = columnDefs
+        .filter(col => col.headerName !== "إجراءات")
+        .map(col => col.headerName);
 
-      const ws = XLSX.utils.json_to_sheet(rows);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Books");
-      XLSX.writeFile(wb, "books_data.xlsx");
-      toast.success(`تم تصدير ${allData.length} سجل`);
-    } catch { toast.error("فشل التصدير"); }
-    finally { setExporting(false); }
+      const dataRows = allData.map(item => {
+        return columnDefs
+          .filter(col => col.headerName !== "إجراءات")
+          .map(col => {
+            let value;
+            // استخدام الـ valueGetter للمؤلفين والحالات الخاصة
+            if (col.valueGetter && typeof col.valueGetter === 'function') {
+              value = col.valueGetter({ data: item } as any);
+            } else {
+              value = item[col.field as keyof BookResponse];
+            }
+
+            // تحويل الحالة لنص عربي إذا كان الحقل هو الحالة
+            if (col.field === "status") {
+              return statusMap[value as string] ?? value ?? "-";
+            }
+
+            return value ?? "-";
+          });
+      });
+
+      // 3. إنشاء ورقة العمل وتنسيق الـ RTL
+      const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+      worksheet['!views'] = [{ RTL: true, workbookViewId: 0 }];
+
+      // 4. تطبيق التنسيق الجمالي (نفس الكود اللي اعتمدناه)
+      const range = XLSX.utils.decode_range(worksheet['!ref']!);
+
+      for (let R = range.s.r; R <= range.e.r; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const address = XLSX.utils.encode_cell({ r: R, c: C });
+          if (!worksheet[address]) continue;
+
+          if (!worksheet[address].s) worksheet[address].s = {};
+
+          // محاذاة لليمين
+          worksheet[address].s.alignment = {
+            horizontal: "right",
+            vertical: "center",
+            readingOrder: 2
+          };
+
+          // تنسيق الهيدر (الصف الأول)
+          if (R === 0) {
+            worksheet[address].s = {
+              ...worksheet[address].s,
+              fill: { patternType: "solid", fgColor: { rgb: "D3D3D3" } }, // اللون السكني
+              font: { bold: true, name: "Arial", sz: 12 },
+              border: {
+                top: { style: "thin" }, bottom: { style: "thin" },
+                left: { style: "thin" }, right: { style: "thin" }
+              }
+            };
+          }
+        }
+      }
+
+      // تحديد عرض الأعمدة
+      worksheet["!cols"] = headers.map(() => ({ wch: 20 }));
+
+      // 5. إنشاء ملف العمل وتفعيل الـ RTL العام
+      const workbook = XLSX.utils.book_new();
+      (workbook as any).Workbook = {
+        Views: [{ RTL: true }]
+      };
+
+      XLSX.utils.book_append_sheet(workbook, worksheet, "قائمة الكتب");
+
+      // 6. الحفظ النهائي
+      const fileName = `إدارة الكتب
+${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+      
+      toast.success(`تم تصدير ${allData.length} سجل بنجاح`);
+
+    } catch (error) {
+      console.error("Export Error:", error);
+      toast.error("فشل التصدير");
+    } finally {
+      setExporting(false);
+    }
   };
 
  const handlePrint = async () => {

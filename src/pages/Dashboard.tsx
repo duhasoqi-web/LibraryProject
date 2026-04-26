@@ -22,7 +22,7 @@ const ALL_CARDS = [
     { title: "إعارة كتاب", description: "تسجيل إعارة جديدة", icon: BookOpen, color: "bg-blue-500", path: "/admin/loan", permission: "Create-Borrow_borrows", category: "الاستعارات والعمليات" },
     { title: "إرجاع كتاب", description: "إتمام عملية الإرجاع", icon: RefreshCw, color: "bg-indigo-500", path: "/admin/return-loan", permission: "Handle-Borrow_borrows", category: "الاستعارات والعمليات" },
     { title: "المتأخرين", description: "قائمة الكتب المتأخرة", icon: AlertCircle, color: "bg-red-500", path: "/admin/late-returns", permission: "Handle-Borrow_borrows", category: "الاستعارات والعمليات" },
-    { title: "الطلبات أونلاين", description: "إعارات الموقع الإلكتروني", icon: Globe, color: "bg-purple-500", path: "/admin/online-requests", permission: "Handle-Online-Borrow_borrows", category: "الاستعارات والعمليات" },
+    { title: "الطلبات أونلاين", description: "إعارات الموقع الإلكتروني واشتراكاته", icon: Globe, color: "bg-purple-500", path: "/admin/online-requests", permission: ["Handle-Online-Borrow_borrows", "Handle-Online-Subscription_Subscriptions"], category: "الاستعارات والعمليات" },
     { title: "الاشتراكات الجديدة", description: "فتح حساب مشترك", icon: UserCheck, color: "bg-teal-500", path: "/admin/subscription/new", permission: "Create-Subscription_Subscriptions", category: "إدارة المشتركين" },
     { title: "تجديد اشتراك", description: "تحديث صلاحية العضوية", icon: RefreshCw, color: "bg-sky-500", path: "/admin/subscription/renew", permission: "Renew-Subscription_Subscriptions", category: "إدارة المشتركين" },
     { title: "تعديل اشتراك", description: "تحديث بيانات المشتركين", icon: Settings, color: "bg-slate-500", path: "/admin/subscription/edit", permission: "Update-Subscription_Subscriptions", category: "إدارة المشتركين" },
@@ -35,7 +35,7 @@ const ALL_CARDS = [
     { title: "الموظفين", description: "إدارة حسابات الموظفين", icon: Users, color: "bg-violet-300", path: "/admin/employees", permission: "Read-Employees_Admin", category: "النظام والإدارة" },
     { title: "المجموعات", description: "إدارة أدوار الصلاحيات", icon: ShieldCheck, color: "bg-slate-400", path: "/admin/groups", permission: "Read-Groups_Admin", category: "النظام والإدارة" },
     { title: "الصفحة الرئيسية", description: "تحكم بمحتوى الموقع", icon: Layers, color: "bg-pink-500", path: "/admin/homepage", permission: "Update-HomePage_Admin", category: "النظام والإدارة" },
-    { title: "تحديد المسؤولين", description: "إدارة قوائم الاختيار", icon: Database, color: "bg-zinc-100", path: "/admin/select", permission: "Read-Employees_Admin", category: "النظام والإدارة" },
+    { title: "قوائم منسدلة", description: "إدارة قوائم الاختيار", icon: Database, color: "bg-zinc-100", path: "/admin/select", permission: "Read-Employees_Admin", category: "النظام والإدارة" },
 ];
 
 
@@ -46,8 +46,14 @@ export default function Dashboard() {
     const userName = localStorage.getItem("userName") || "الموظف";
     const permissions = JSON.parse(localStorage.getItem("permissions") || "[]");
 
-    const visibleCards = ALL_CARDS.filter((card) => permissions.includes(card.permission));
-
+const visibleCards = ALL_CARDS.filter((card) => {
+    // إذا كانت صلاحيات الكارد مصفوفة، نتحقق إذا كان المستخدم يملك واحدة منها على الأقل
+    if (Array.isArray(card.permission)) {
+        return card.permission.some(p => permissions.includes(p));
+    }
+    // إذا كانت نصاً عادياً، نستخدم الطريقة القديمة
+    return permissions.includes(card.permission);
+});
     const groupedCards = visibleCards.reduce((acc: any, card) => {
         if (!acc[card.category]) acc[card.category] = [];
         acc[card.category].push(card);

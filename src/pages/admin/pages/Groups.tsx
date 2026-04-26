@@ -194,14 +194,22 @@ className="w-full sm:w-auto rounded-2xl bg-indigo-600 font-black h-12 px-6 shado
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="font-bold text-slate-600 mr-1">المستوى</Label>
-                  <Input
-                      type="number"
-                      value={form.groupLevel}
-                      onChange={e => setForm({ ...form, groupLevel: e.target.value })}
-                      className="h-12 text-center rounded-xl font-bold border-slate-200"
-                  />
-                </div>
+  <Label className="font-bold text-slate-600 mr-1">المستوى</Label>
+  <Input
+    type="number"
+    min={0}
+    max={99}
+    value={form.groupLevel}
+    onChange={e => setForm({ ...form, groupLevel: e.target.value })}
+    onKeyDown={e => {
+      // منع كتابة رمز - فقط
+      if (e.key === '-') {
+        e.preventDefault();
+      }
+    }}
+    className="h-12 text-center rounded-xl font-bold border-slate-200"
+  />
+</div>
               </div>
 
               <hr className="border-slate-100" />

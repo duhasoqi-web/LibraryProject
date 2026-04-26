@@ -309,14 +309,14 @@ const Signup = () => {
                           <div dir="rtl" className="w-full">
                             <SectionTitle>الاسم الرباعي</SectionTitle>
                             <div  className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <Field label="العائلة" value={formData.memberInfo.familyName} onChange={(v: any) => { handleInputChange('memberInfo', 'familyName', v); setErrors(e => ({...e, m_familyName: ""})); }} required error={errors["m_familyName"]} />
+                      <Field label="الاسم الأول" value={formData.memberInfo.firstName} onChange={(v: any) => { handleInputChange('memberInfo', 'firstName', v); setErrors(e => ({...e, m_firstName: ""})); }} required error={errors["m_firstName"]} />
+                               <Field label="اسم الأب" value={formData.memberInfo.fatherName} onChange={(v: any) => { handleInputChange('memberInfo', 'fatherName', v); setErrors(e => ({...e, m_fatherName: ""})); }} required error={errors["m_fatherName"]} />
                               <Field label="اسم الجد" value={formData.memberInfo.grandfatherName} onChange={(v: any) => { handleInputChange('memberInfo', 'grandfatherName', v); setErrors(e => ({...e, m_grandfatherName: ""})); }} required error={errors["m_grandfatherName"]} />
-                              <Field label="اسم الأب" value={formData.memberInfo.fatherName} onChange={(v: any) => { handleInputChange('memberInfo', 'fatherName', v); setErrors(e => ({...e, m_fatherName: ""})); }} required error={errors["m_fatherName"]} />
-                              <Field label="الاسم الأول" value={formData.memberInfo.firstName} onChange={(v: any) => { handleInputChange('memberInfo', 'firstName', v); setErrors(e => ({...e, m_firstName: ""})); }} required error={errors["m_firstName"]} />
+<Field label="العائلة" value={formData.memberInfo.familyName} onChange={(v: any) => { handleInputChange('memberInfo', 'familyName', v); setErrors(e => ({...e, m_familyName: ""})); }} required error={errors["m_familyName"]} />
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                              <Field label="First Name (EN)" value={formData.memberInfo.firstNameEn} onChange={(v: any) => { handleInputChange('memberInfo', 'firstNameEn', v); setErrors(e => ({...e, m_firstNameEn: ""})); }} dir="ltr" required error={errors["m_firstNameEn"]} />
-                              <Field label="Family Name (EN)" value={formData.memberInfo.familyNameEn} onChange={(v: any) => { handleInputChange('memberInfo', 'familyNameEn', v); setErrors(e => ({...e, m_familyNameEn: ""})); }} dir="ltr" required error={errors["m_familyNameEn"]} />
+                      <Field label="Family Name (EN)" value={formData.memberInfo.familyNameEn} onChange={(v: any) => { handleInputChange('memberInfo', 'familyNameEn', v); setErrors(e => ({...e, m_familyNameEn: ""})); }} dir="ltr" required error={errors["m_familyNameEn"]} />
+<Field label="First Name (EN)" value={formData.memberInfo.firstNameEn} onChange={(v: any) => { handleInputChange('memberInfo', 'firstNameEn', v); setErrors(e => ({...e, m_firstNameEn: ""})); }} dir="ltr" required error={errors["m_firstNameEn"]} />
                             </div>
                           </div>
 
@@ -437,10 +437,10 @@ const Signup = () => {
                         <div dir="rtl" className="w-full">
                             <SectionTitle>الاسم الرباعي للكفيل</SectionTitle>
                             <div  className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                              <Field label="العائلة" value={formData.guarantorInfo.familyName} onChange={(v: any) => { handleInputChange('guarantorInfo', 'familyName', v); setErrors(e => ({...e, g_familyName: ""})); }} required error={errors["g_familyName"]} />
+                          <Field label="الاسم الأول" value={formData.guarantorInfo.firstName} onChange={(v: any) => { handleInputChange('guarantorInfo', 'firstName', v); setErrors(e => ({...e, g_firstName: ""})); }} required error={errors["g_firstName"]} />
+                               <Field label="اسم الأب" value={formData.guarantorInfo.fatherName} onChange={(v: any) => { handleInputChange('guarantorInfo', 'fatherName', v); setErrors(e => ({...e, g_fatherName: ""})); }} required error={errors["g_fatherName"]} />
                               <Field label="اسم الجد" value={formData.guarantorInfo.grandfatherName} onChange={(v: any) => { handleInputChange('guarantorInfo', 'grandfatherName', v); setErrors(e => ({...e, g_grandfatherName: ""})); }} required error={errors["g_grandfatherName"]} />
-                              <Field label="اسم الأب" value={formData.guarantorInfo.fatherName} onChange={(v: any) => { handleInputChange('guarantorInfo', 'fatherName', v); setErrors(e => ({...e, g_fatherName: ""})); }} required error={errors["g_fatherName"]} />
-                              <Field label="الاسم الأول" value={formData.guarantorInfo.firstName} onChange={(v: any) => { handleInputChange('guarantorInfo', 'firstName', v); setErrors(e => ({...e, g_firstName: ""})); }} required error={errors["g_firstName"]} />
+                     <Field label="العائلة" value={formData.guarantorInfo.familyName} onChange={(v: any) => { handleInputChange('guarantorInfo', 'familyName', v); setErrors(e => ({...e, g_familyName: ""})); }} required error={errors["g_familyName"]} />
                             </div>
                           </div>
 

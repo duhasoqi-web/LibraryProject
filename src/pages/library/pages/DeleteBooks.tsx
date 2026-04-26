@@ -247,27 +247,75 @@ const DeleteBooks = () => {
     finally { setWithdrawing(false); }
   }, [selectedBook, reasonId, notes]);
 
-  const handleExportExcel = async () => {
-    if (!searchQuery.trim()) { swalWarning("تنبيه", "ابحث أولاً ثم صدّر"); return; }
+ const handleExportExcel = async () => {
+    if (!searchQuery.trim()) {
+      swalWarning("تنبيه", "ابحث أولاً ثم صدّر البيانات");
+      return;
+    }
+
     setExporting(true);
     try {
       const allData = await fetchAllPages(searchQuery, searchType);
-      const rows = allData.map((b) => ({
-        "باركود": b.barcode ?? "",
-        "رقم التسلسل": b.serialNumber ?? "",
-        "عنوان الكتاب": b.title ?? "",
-        "المؤلف": Array.isArray(b.authors) ? (b.authors as any[]).map((a) => a.name).join(", ") : b.authors ?? "",
-        "الحالة": b.status === "Removed" ? "مخرج" : "متوفر",
-      }));
-      const ws = XLSX.utils.json_to_sheet(rows);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "الكتب");
-      XLSX.writeFile(wb, "books_data.xlsx");
-      toast.success(`تم تصدير ${allData.length} سجل`);
-    } catch { swalError("خطأ", "فشل التصدير"); }
-    finally { setExporting(false); }
-  };
+      const headers = ["باركود", "رقم التسلسل", "عنوان الكتاب", "المؤلف", "الحالة"];
 
+      const dataRows = allData.map((b) => [
+        b.barcode ?? "",
+        b.serialNumber ?? "",
+        b.title ?? "",
+        Array.isArray(b.authors) ? (b.authors as any[]).map((a) => a.name).join(", ") : b.authors ?? "",
+        b.status === "Removed" ? "مخرج" : "متوفر",
+      ]);
+
+      const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+      worksheet['!views'] = [{ RTL: true, workbookViewId: 0 }];
+
+      const range = XLSX.utils.decode_range(worksheet['!ref']!);
+
+      for (let R = range.s.r; R <= range.e.r; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const address = XLSX.utils.encode_cell({ r: R, c: C });
+          if (!worksheet[address]) continue;
+          if (!worksheet[address].s) worksheet[address].s = {};
+          worksheet[address].s.alignment = {
+            horizontal: "right",
+            vertical: "center",
+            readingOrder: 2
+          };
+
+          // تنسيق الهيدر (الصف الأول R === 0)
+          if (R === 0) {
+            worksheet[address].s = {
+              ...worksheet[address].s,
+              fill: { patternType: "solid", fgColor: { rgb: "D3D3D3" } }, // اللون السكني اللي اعتمدناه
+              font: { bold: true, name: "Arial", sz: 12 },
+              border: {
+                top: { style: "thin" }, bottom: { style: "thin" },
+                left: { style: "thin" }, right: { style: "thin" }
+              }
+            };
+          }
+        }
+      }
+      worksheet["!cols"] = headers.map(() => ({ wch: 22 }));
+      const workbook = XLSX.utils.book_new();
+      const wb = workbook as any;
+      wb.Workbook = {
+        Views: [{ RTL: true }]
+      };
+
+      XLSX.utils.book_append_sheet(workbook, worksheet, "الكتب المخرجة");
+
+      // 6. الحفظ
+      XLSX.writeFile(workbook, `إخراج كتاب_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success(`تم تصدير ${allData.length} سجل بنجاح`);
+
+    } catch (error) {
+      console.error(error);
+      swalError("خطأ", "فشل التصدير");
+    } finally {
+      setExporting(false);
+    }
+  };
   const handlePrint = async () => {
     if (!searchQuery.trim()) { swalWarning("تنبيه", "ابحث أولاً ثم اطبع"); return; }
     setExporting(true);

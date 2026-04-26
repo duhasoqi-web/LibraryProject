@@ -141,6 +141,7 @@ export default function LoanRequestsTab() {
       {/* 2. الجدول (الجزء الذي كان مفقوداً) */}
       <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm overflow-hidden p-6 h-[500px] flex flex-col">
         <AgGridTable
+        title=" طلبات الإعارة "
   columnDefs={[
     { 
       field: "fullName", 

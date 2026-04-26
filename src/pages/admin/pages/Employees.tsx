@@ -387,23 +387,43 @@ export default function Employees() {
   };
 
   const handleTransfer = async () => {
-    if (!transferForm.newAdminId || !transferForm.currentPassword)
-      return toast({ description: "يرجى ملء جميع الحقول", variant: "destructive" });
-    setSaving(true);
-    try {
-      const result = await employeeApi.transferOwnership({
-        newAdminId: Number(transferForm.newAdminId),
-        Password: transferForm.currentPassword,
-      });
-      showToast(result);
+  if (!transferForm.newAdminId || !transferForm.currentPassword) {
+    return toast({ description: "يرجى ملء جميع الحقول", variant: "destructive" });
+  }
+  
+  setSaving(true);
+  try {
+    const result = await employeeApi.transferOwnership({
+      newAdminId: Number(transferForm.newAdminId),
+      Password: transferForm.currentPassword,
+    });
+    
+    showToast(result);
+    
+    if (result?.success !== false) {
       setTransferOpen(false);
-      if (result?.success !== false) window.location.reload();
-    } catch (err: any) {
-      toast({ description: err.message || "فشل النقل", variant: "destructive" });
-    } finally {
-      setSaving(false);
+      
+      toast({ 
+        description: "✅ تم نقل الملكية بنجاح. جاري تسجيل الخروج...", 
+     
+      });
+      
+      // طريقة مباشرة بدون دالة خارجية
+      setTimeout(() => {
+        localStorage.clear(); // مسح كل التخزين
+        window.location.href = '/login'; // اذهب لصفحة الدخول
+      }, 1500);
+      
+    } else {
+      setTransferOpen(false);
     }
-  };
+    
+  } catch (err: any) {
+    toast({ description: err.message || "فشل النقل", variant: "destructive" });
+  } finally {
+    setSaving(false);
+  }
+};
 
   const groupedEmployees = useMemo(() => {
     const filtered = employees.filter(e =>

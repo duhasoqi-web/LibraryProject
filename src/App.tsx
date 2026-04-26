@@ -67,14 +67,20 @@ function MemberProtectedRoute({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
 }
 
-/** 2. حماية المسار بناءً على صلاحية محددة للموظفين */
-function PermissionRoute({ permission, children }: { permission: string; children: React.ReactNode }) {
+/** حماية المسار بناءً على صلاحية واحدة أو أكثر */
+function PermissionRoute({ permission, children }: { permission: string | string[]; children: React.ReactNode }) {
     const permissions = JSON.parse(localStorage.getItem("permissions") || "[]");
     
-    // إذا كانت الصلاحية غير موجودة في مصفوفة صلاحيات الموظف، ارجعه للداشبورد
-    if (!permissions.includes(permission)) {
+    // تحويل القيمة دائماً لمصفوفة لتسهيل الفحص
+    const requiredPermissions = Array.isArray(permission) ? permission : [permission];
+
+    // التحقق: هل يملك المستخدم على الأقل صلاحية واحدة من المطلوب؟
+    const hasPermission = requiredPermissions.some(p => permissions.includes(p));
+
+    if (!hasPermission) {
         return <Navigate to="/admin/dash" replace />;
     }
+
     return <>{children}</>;
 }
 
@@ -151,7 +157,8 @@ const AppRoutes = () => (
             <Route path="return-loan" element={<PermissionRoute permission="Handle-Borrow_borrows"><ReturnLoanPage /></PermissionRoute>} />
             <Route path="late-returns" element={<PermissionRoute permission="Handle-Borrow_borrows"><LateReturnPage /></PermissionRoute>} />
             <Route path="alerts" element={<PermissionRoute permission="Handle-Borrow_borrows"><AlertsPage /></PermissionRoute>} />
-            <Route path="online-requests" element={<PermissionRoute permission="Handle-Online-Borrow_borrows"><OnlineRequestsPage /></PermissionRoute>} />
+
+            <Route path="online-requests" element={<PermissionRoute permission={["Handle-Online-Borrow_borrows", "Handle-Online-Subscription_Subscriptions"]}><OnlineRequestsPage /></PermissionRoute>} />
             <Route path="general-reports" element={<PermissionRoute permission="Read-Reports_borrows"><GeneralReportsPage /></PermissionRoute>} />
             <Route path="personal-reports" element={<PermissionRoute permission="Read-Reports_borrows"><PersonalReportPage /></PermissionRoute>} />
 
